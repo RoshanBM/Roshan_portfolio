@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Roshan Mahashabde | ML & AI Engineer</title>
+    <meta
+      name="description"
+      content="Roshan Balaji Mahashabde, ML and AI engineer finishing an MSc in Applied AI at Warwick. Projects, experience and research, pressed onto four discs."
+    />
+    <meta name="theme-color" content="#ededeb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#121314" media="(prefers-color-scheme: dark)" />
+    <meta property="og:title" content="Roshan Mahashabde | ML & AI Engineer" />
+    <meta property="og:description" content="Projects, experience and research, pressed onto four discs." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <a class="skip" href="#discs-list">Skip to content</a>
+
+    <div class="loader" aria-hidden="true">
+      <span class="loader__side loader__side--left">Roshan Mahashabde</span>
+      <span class="loader__count"><span class="loader__num">0</span></span>
+      <span class="loader__side loader__side--right">Portfolio 2026</span>
+    </div>
+
+    <canvas class="stage" aria-hidden="true"></canvas>
+    <div class="fallback" aria-hidden="true"></div>
+
+    <header class="info" aria-live="polite">
+      <h1 class="info__title"><span class="info__title-inner"></span></h1>
+      <dl class="info__rows"></dl>
+    </header>
+
+    <div class="corner">
+      <a class="corner__link" data-cv download>CV <span class="icon" data-icon="download"></span></a>
+      <a class="corner__link" data-email>Email me</a>
+    </div>
+
+    <button class="disc-hit" type="button" hidden>
+      <svg class="disc-hit__ring" aria-hidden="true"><path pathLength="1" /></svg>
+    </button>
+
+    <div class="highlights" aria-hidden="true"></div>
+
+    <nav class="dock" aria-label="Discs">
+      <a class="dock__mark" href="#" aria-label="Back to the first disc">RBM</a>
+      <ul class="dock__list" id="discs-list"></ul>
+    </nav>
+
+    <main class="track" aria-hidden="true"></main>
+
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="panel-title" hidden>
+      <div class="panel__scroll"></div>
+      <button class="panel__close" type="button">Close <span class="icon" data-icon="x"></span></button>
+    </div>
+
+    <noscript>
+      <p style="padding:24px;font-family:system-ui">
+        Roshan Balaji Mahashabde, ML and AI engineer. This site needs JavaScript. My CV is at
+        <a href="/Roshan-Mahashabde-CV.pdf">/Roshan-Mahashabde-CV.pdf</a>.
+      </p>
+    </noscript>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
