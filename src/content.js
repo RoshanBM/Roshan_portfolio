@@ -19,7 +19,10 @@ export const discs = [
     label: 'About',
     title: 'About',
     art: 'about',
-    rim: 'ROSHAN BALAJI MAHASHABDE     MSC APPLIED AI     UNIVERSITY OF WARWICK     2026',
+    // Written on the disc in marker
+    scribble: 'RBM - ABOUT ME',
+    // Optional: put an image in public/discs/ and set e.g. '/discs/about.jpg' to print it on the disc
+    discImage: null,
     // Shown in the top-left table while the disc is centred
     credits: [
       ['Name', 'Roshan B. Mahashabde'],
@@ -91,7 +94,9 @@ export const discs = [
     label: 'Projects',
     title: 'Projects',
     art: 'projects',
-    rim: 'SELECTED PROJECTS     PYTHON     PYTORCH     XGBOOST     FLASK     2025-2026',
+    // Written on the disc in marker
+    scribble: 'RBM - PROJECTS',
+    discImage: null,
     credits: [
       ['Tracks', '6 projects'],
       ['Stack', 'Python, XGBoost, Flask'],
@@ -179,7 +184,9 @@ export const discs = [
     label: 'Experience',
     title: 'Experience',
     art: 'experience',
-    rim: 'ISRO U R RAO SATELLITE CENTRE     IISC x WIRIN     IEEE     BENGALURU     2023-2025',
+    // Written on the disc in marker
+    scribble: 'RBM - EXPERIENCE',
+    discImage: null,
     credits: [
       ['Tracks', '3 internships'],
       ['Where', 'ISRO, IISc x WIRIN, IEEE'],
@@ -240,7 +247,9 @@ export const discs = [
     label: 'Research',
     title: 'Research',
     art: 'research',
-    rim: 'PEER-REVIEWED PUBLICATIONS     IEEE     SPRINGER     2024-2025',
+    // Written on the disc in marker
+    scribble: 'RBM - RESEARCH',
+    discImage: null,
     credits: [
       ['Tracks', '4 papers'],
       ['Publishers', 'IEEE, Springer'],

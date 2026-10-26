@@ -1,7 +1,7 @@
 /*
   Design notes
   - One theme family: cool off-white paper in light mode, near-black in dark mode.
-  - One accent (vermilion), used only for the hand-drawn ring, focus and link hover.
+  - One accent (vermilion), used only for focus on panel links and link hover.
   - Shape rule: interactive pills (dock, close) are fully round; everything else is square.
   - Serif is reserved for display type, echoing printed CD and film credits.
 */
@@ -311,23 +311,10 @@ button {
   transform-origin: 50% 50%;
   -webkit-tap-highlight-color: transparent;
 }
+/* keyboard users still need to see which disc has focus */
 .disc-hit:focus-visible {
-  outline: none;
-}
-.disc-hit__ring {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  overflow: visible;
-  pointer-events: none;
-}
-.disc-hit__ring path {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 2.25;
-  stroke-linecap: round;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
+  outline: 1.5px solid var(--ink);
+  outline-offset: 10px;
 }
 
 /* ---------- highlights under the disc ---------- */

@@ -267,11 +267,13 @@ const ARTS = {
   research: { draw: researchArt, light: false },
 };
 
-/* ---------- disc label ---------- */
+/* ---------- blank CD-R face with a handwritten label ---------- */
 
-function arcText(ctx, text, cx, cy, radius, startAngle, endAngle, color, size) {
+const HAND = '"Shadows Into Light", "Comic Sans MS", cursive';
+
+function arcText(ctx, text, cx, cy, radius, startAngle, endAngle, color, size, font = MONO) {
   ctx.save();
-  ctx.font = `500 ${size}px ${MONO}`;
+  ctx.font = `500 ${size}px ${font}`;
   ctx.fillStyle = color;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -288,35 +290,179 @@ function arcText(ctx, text, cx, cy, radius, startAngle, endAngle, color, size) {
   ctx.restore();
 }
 
-export function drawDisc(disc, size, monogram) {
+// Printed text in the light grey-on-silver style of a blank disc
+function printed(ctx, text, x, y, size, { weight = 600, align = 'left', fill = '#f7f8f9', stroke = 'rgba(92,96,104,0.75)', font = SANS } = {}) {
+  ctx.save();
+  ctx.font = `${weight} ${size}px ${font}`;
+  ctx.textAlign = align;
+  ctx.textBaseline = 'alphabetic';
+  if (stroke) {
+    ctx.lineWidth = Math.max(1, size * 0.06);
+    ctx.strokeStyle = stroke;
+    ctx.strokeText(text, x, y);
+  }
+  ctx.fillStyle = fill;
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+function blankFace(ctx, S, monogram) {
+  const R = S / 2;
+
+  // matte silver base
+  const base = ctx.createRadialGradient(R * 0.85, R * 0.75, R * 0.1, R, R, R);
+  base.addColorStop(0, '#cfd2d6');
+  base.addColorStop(0.7, '#c3c7cc');
+  base.addColorStop(1, '#b3b8be');
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, S, S);
+
+  // faint rainbow sheen from the dye layer showing through
+  if (ctx.createConicGradient) {
+    const sheen = ctx.createConicGradient(-0.6, R, R);
+    const hues = ['#f6c7a4', '#f3e3a0', '#bfe6c4', '#a9d2ef', '#d6b9ef', '#f2b6c9', '#f6c7a4'];
+    hues.forEach((c, i) => sheen.addColorStop(i / (hues.length - 1), c));
+    ctx.globalAlpha = 0.1;
+    ctx.fillStyle = sheen;
+    ctx.fillRect(0, 0, S, S);
+    ctx.globalAlpha = 1;
+  }
+  const band = ctx.createLinearGradient(0, 0, S, S);
+  band.addColorStop(0.3, 'rgba(255,255,255,0)');
+  band.addColorStop(0.45, 'rgba(255,255,255,0.14)');
+  band.addColorStop(0.6, 'rgba(255,255,255,0)');
+  ctx.fillStyle = band;
+  ctx.fillRect(0, 0, S, S);
+
+  // own monogram where a maker's logo would be, in a soft holographic print
+  ctx.save();
+  ctx.font = `700 ${S * 0.085}px ${SANS}`;
+  ctx.textAlign = 'center';
+  if ('letterSpacing' in ctx) ctx.letterSpacing = `${S * 0.012}px`;
+  const holo = ctx.createLinearGradient(R - S * 0.12, 0, R + S * 0.12, 0);
+  holo.addColorStop(0, 'rgba(214,128,86,0.8)');
+  holo.addColorStop(0.5, 'rgba(190,112,160,0.75)');
+  holo.addColorStop(1, 'rgba(100,168,132,0.8)');
+  ctx.fillStyle = holo;
+  ctx.fillText(monogram, R, S * 0.225);
+  ctx.restore();
+
+  // left and right print, like a stock CD-R
+  printed(ctx, 'CD-R', S * 0.075, S * 0.505, S * 0.06, { weight: 700 });
+  printed(ctx, '700MB/80Min', S * 0.078, S * 0.54, S * 0.019, { weight: 500, stroke: null, fill: 'rgba(255,255,255,0.95)' });
+  printed(ctx, '1X - 52X', S * 0.905, S * 0.455, S * 0.034, { align: 'right', weight: 500 });
+  ctx.save();
+  ctx.font = `500 ${S * 0.019}px ${SANS}`;
+  const tag = 'CD-Recordable';
+  const tw = ctx.measureText(tag).width;
+  const tx = S * 0.905 - tw - S * 0.012;
+  const ty = S * 0.472;
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.strokeStyle = 'rgba(120,124,132,0.5)';
+  ctx.lineWidth = Math.max(1, S * 0.0012);
+  ctx.fillRect(tx, ty, tw + S * 0.024, S * 0.03);
+  ctx.strokeRect(tx, ty, tw + S * 0.024, S * 0.03);
+  ctx.fillStyle = 'rgba(110,114,122,0.95)';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(tag, tx + S * 0.012, ty + S * 0.016);
+  ctx.restore();
+
+  // "Contents" writing lines below the hub
+  printed(ctx, 'Contents', S * 0.12, S * 0.668, S * 0.022, { weight: 400, stroke: null, fill: 'rgba(255,255,255,0.95)' });
+  ctx.strokeStyle = 'rgba(110,114,122,0.6)';
+  ctx.lineWidth = Math.max(1, S * 0.0015);
+  [0.715, 0.775, 0.835].forEach((t, k) => {
+    const y = S * t;
+    const half = Math.sqrt(Math.max(0, (R * 0.93) ** 2 - (y - R) ** 2));
+    const x0 = R - half + S * (k === 0 ? 0.13 : 0.03);
+    const x1 = R + half - S * 0.03;
+    ctx.beginPath();
+    ctx.moveTo(x0, y);
+    ctx.lineTo(x1, y);
+    ctx.stroke();
+  });
+
+  arcText(
+    ctx,
+    'Do not expose to direct sunlight. Write with a soft-tip pen only.',
+    R,
+    R,
+    R * 0.92,
+    Math.PI * 0.86,
+    Math.PI * 0.14,
+    'rgba(88,92,100,0.9)',
+    S * 0.018,
+    SANS
+  );
+}
+
+// Felt-tip handwriting: each letter gets its own small wobble so it never looks typeset
+function handwrite(ctx, text, cx, baseline, maxWidth, S, seed) {
+  const r = rng(seed);
+  let size = S * 0.068;
+  ctx.font = `400 ${size}px ${HAND}`;
+  const measure = () => ctx.measureText(text).width * 1.04;
+  while (measure() > maxWidth && size > S * 0.03) {
+    size *= 0.95;
+    ctx.font = `400 ${size}px ${HAND}`;
+  }
+  const chars = [...text];
+  const widths = chars.map((c) => ctx.measureText(c).width * 1.04);
+  const total = widths.reduce((a, b) => a + b, 0);
+  let x = cx - total / 2;
+  ctx.save();
+  ctx.translate(cx, baseline);
+  ctx.rotate(-0.012 + (r() - 0.5) * 0.02);
+  ctx.translate(-cx, -baseline);
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+  chars.forEach((ch, i) => {
+    const jitterY = (r() - 0.5) * size * 0.08 - i * size * 0.004;
+    const rot = (r() - 0.5) * 0.1;
+    const scale = 0.96 + r() * 0.08;
+    ctx.save();
+    ctx.translate(x, baseline - size * 0.1 + jitterY);
+    ctx.rotate(rot);
+    ctx.scale(scale, scale);
+    // a soft bleed under the stroke, then the ink itself
+    // felt tip: a stroked pass gives the line some body, then the ink fill
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.lineWidth = size * 0.045;
+    ctx.strokeStyle = 'rgba(28,48,160,0.55)';
+    ctx.strokeText(ch, 0, 0);
+    ctx.fillStyle = 'rgba(22,42,150,0.96)';
+    ctx.fillText(ch, 0, 0);
+    ctx.restore();
+    x += widths[i];
+  });
+  ctx.restore();
+}
+
+function coverImage(ctx, img, S) {
+  const k = Math.max(S / img.naturalWidth, S / img.naturalHeight);
+  const w = img.naturalWidth * k;
+  const h = img.naturalHeight * k;
+  ctx.drawImage(img, (S - w) / 2, (S - h) / 2, w, h);
+}
+
+export function drawDisc(disc, size, monogram, image) {
   const c = document.createElement('canvas');
   c.width = c.height = size;
   const ctx = c.getContext('2d');
   const R = size / 2;
-  const art = ARTS[disc.art];
 
   ctx.save();
   ctx.beginPath();
   ctx.arc(R, R, R * 0.985, 0, Math.PI * 2);
   ctx.clip();
-  art.draw(ctx, size, size);
-  grain(ctx, size, size, 14, disc.art.length * 31);
-
-  const fg = art.light ? 'rgba(240,236,228,0.95)' : 'rgba(28,24,30,0.92)';
-  const fgSoft = art.light ? 'rgba(240,236,228,0.7)' : 'rgba(28,24,30,0.65)';
-
-  // title like a printed CD label
-  ctx.fillStyle = fg;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  ctx.font = `400 ${size * 0.105}px ${SERIF}`;
-  ctx.fillText(disc.title, R, size * 0.3);
-  ctx.font = `600 ${size * 0.03}px ${SANS}`;
-  if ('letterSpacing' in ctx) ctx.letterSpacing = `${size * 0.006}px`;
-  ctx.fillText(monogram, R, size * 0.355);
-  if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
-
-  arcText(ctx, disc.rim, R, R, R * 0.915, Math.PI * 0.93, Math.PI * 0.07, fgSoft, size * 0.0165);
+  if (image) {
+    coverImage(ctx, image, size);
+  } else {
+    blankFace(ctx, size, monogram);
+    grain(ctx, size, size, 6, 3);
+    handwrite(ctx, disc.scribble, R + size * 0.035, size * 0.708, size * 0.6, size, disc.id.length * 17 + 5);
+  }
   ctx.restore();
 
   // centre hole and clear hub
@@ -337,11 +483,31 @@ export function drawDisc(disc, size, monogram) {
     ctx.fillStyle = fill;
     ctx.fill();
   };
-  ring(0.125, 0.3, 'rgba(214,219,226,0.5)');
-  ring(0.205, 0.228, 'rgba(250,251,253,0.75)');
-  ring(0.125, 0.142, 'rgba(250,251,253,0.85)');
-  ring(0.292, 0.3, 'rgba(160,166,175,0.6)');
-  ring(0.985, 1.0, 'rgba(222,226,232,0.55)');
+  ring(0.125, 0.3, 'rgba(188,192,198,0.7)');
+  ring(0.205, 0.228, 'rgba(232,234,237,0.85)');
+  ring(0.125, 0.142, 'rgba(240,242,244,0.9)');
+  ring(0.292, 0.3, 'rgba(150,155,163,0.7)');
+  ring(0.985, 1.0, 'rgba(222,226,232,0.6)');
+  arcText(ctx, 'RECORDABLE     700MB     80MIN', R, R, R * 0.258, Math.PI * 1.25, Math.PI * 0.35, 'rgba(120,124,132,0.6)', size * 0.0105);
+  return c;
+}
+
+// Rotational blur of a disc label, cross-faded in by the scene while the disc spins fast
+export function drawSpinBlur(source, size = 512, spread = 0.7, samples = 28) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const R = size / 2;
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = 1 / samples;
+  for (let k = 0; k < samples; k++) {
+    const a = (k / (samples - 1) - 0.5) * spread;
+    ctx.save();
+    ctx.translate(R, R);
+    ctx.rotate(a);
+    ctx.drawImage(source, -R, -R, size, size);
+    ctx.restore();
+  }
   return c;
 }
 

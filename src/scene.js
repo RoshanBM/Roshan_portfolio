@@ -4,7 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 // Base orientation of a disc lying on a table, seen from above at an angle
 const BASE = { x: -0.86, y: 0.12, z: 0.42 };
 
-export function createStage(canvas, discCanvases, backAlphaCanvas) {
+export function createStage(canvas, discCanvases, blurCanvases, backAlphaCanvas) {
   const renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: true,
@@ -24,7 +24,7 @@ export function createStage(canvas, discCanvases, backAlphaCanvas) {
   const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 100);
   camera.position.set(0, 0, 12);
 
-  const key = new THREE.DirectionalLight(0xffffff, 1.1);
+  const key = new THREE.DirectionalLight(0xffffff, 0.55);
   key.position.set(-4, 6, 7);
   scene.add(key, new THREE.AmbientLight(0xffffff, 0.25));
 
@@ -38,29 +38,41 @@ export function createStage(canvas, discCanvases, backAlphaCanvas) {
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = aniso;
 
+    // Matte print, no gloss or rainbow sheen
     const front = new THREE.Mesh(
       faceGeo,
-      new THREE.MeshPhysicalMaterial({
+      new THREE.MeshStandardMaterial({
         map: tex,
         transparent: true,
-        roughness: 0.4,
+        roughness: 0.7,
         metalness: 0,
-        clearcoat: 1,
-        clearcoatRoughness: 0.1,
-        envMapIntensity: 0.55,
+        envMapIntensity: 0.22,
       })
     );
     front.position.z = 0.007;
 
+    const blurTex = new THREE.CanvasTexture(blurCanvases[i]);
+    blurTex.colorSpace = THREE.SRGBColorSpace;
+    const blur = new THREE.Mesh(
+      faceGeo,
+      new THREE.MeshStandardMaterial({
+        map: blurTex,
+        transparent: true,
+        roughness: 0.7,
+        metalness: 0,
+        envMapIntensity: 0.22,
+        opacity: 0,
+        depthWrite: false,
+      })
+    );
+    blur.position.z = 0.0075;
+
     const back = new THREE.Mesh(
       faceGeo,
-      new THREE.MeshPhysicalMaterial({
-        color: 0xd7dbe1,
-        metalness: 1,
-        roughness: 0.14,
-        iridescence: 1,
-        iridescenceIOR: 1.6,
-        iridescenceThicknessRange: [120, 900],
+      new THREE.MeshStandardMaterial({
+        color: 0xc6cad0,
+        metalness: 0.6,
+        roughness: 0.5,
         alphaMap: backAlpha,
         transparent: true,
       })
@@ -70,10 +82,10 @@ export function createStage(canvas, discCanvases, backAlphaCanvas) {
 
     const edge = new THREE.Mesh(
       edgeGeo,
-      new THREE.MeshPhysicalMaterial({
+      new THREE.MeshStandardMaterial({
         color: 0xc9ced6,
-        metalness: 0.5,
-        roughness: 0.22,
+        metalness: 0.4,
+        roughness: 0.5,
         transparent: true,
         opacity: 0.9,
       })
@@ -81,7 +93,7 @@ export function createStage(canvas, discCanvases, backAlphaCanvas) {
     edge.rotation.x = Math.PI / 2;
 
     const spin = new THREE.Group();
-    spin.add(front, back, edge);
+    spin.add(front, blur, back, edge);
     spin.rotation.z = -i * 1.3;
     const tilt = new THREE.Group();
     tilt.rotation.order = 'YXZ';
@@ -92,7 +104,7 @@ export function createStage(canvas, discCanvases, backAlphaCanvas) {
 
     const mats = [front.material, back.material, edge.material];
     const baseOpacity = mats.map((m) => m.opacity);
-    return { root, tilt, spin, mats, baseOpacity, speed: 0.22 };
+    return { root, tilt, spin, mats, baseOpacity, blur: blur.material, speed: 0.22 };
   });
 
   const state = {
@@ -101,6 +113,7 @@ export function createStage(canvas, discCanvases, backAlphaCanvas) {
     pointer: { x: 0, y: 0, sx: 0, sy: 0 },
     intro: 1,
     open: 0,
+    loading: 0,
     reduce: false,
     layout: null,
   };
@@ -157,7 +170,7 @@ export function createStage(canvas, discCanvases, backAlphaCanvas) {
       y -= (1 - state.intro) * L.visH * 0.9 * focus;
       // opening: the centred disc lifts away with the panel
       y += state.open * L.visH * 0.85 * focus;
-      s *= 1 + state.open * 0.25 * focus;
+      s *= 1 + state.open * 0.25 * focus + state.loading * 0.04 * focus;
 
       d.root.position.set(x, y, 0);
       d.root.scale.setScalar(s);
@@ -167,11 +180,15 @@ export function createStage(canvas, discCanvases, backAlphaCanvas) {
 
       const target = state.reduce ? 0 : focus > 0.9 && state.hover ? 2.6 : 0.22;
       d.speed += (target - d.speed) * 0.06;
-      d.spin.rotation.z -= dt * (d.speed + state.open * 4 * focus + (1 - state.intro) * 3);
+      // clicking a disc spins it up like a drive reading it
+      const omega = d.speed + (state.open * 4 + state.loading * 28) * focus + (1 - state.intro) * 3;
+      d.spin.rotation.z -= dt * omega;
 
       const fade = Math.min(Math.max(1 - (ad - 1.15) / 0.4, 0), 1) * (focus > 0.5 ? 1 : state.intro);
       d.root.visible = fade > 0.001;
       d.mats.forEach((m, k) => (m.opacity = d.baseOpacity[k] * fade));
+      const b = Math.min(Math.max((omega - 4) / 14, 0), 1);
+      d.blur.opacity = b * b * (3 - 2 * b) * fade;
     });
     renderer.render(scene, camera);
   }
@@ -179,7 +196,7 @@ export function createStage(canvas, discCanvases, backAlphaCanvas) {
   // Screen-space ellipse of the centred disc, used to place the DOM hit area
   function activeEllipse() {
     const i = Math.round(state.progress);
-    if (Math.abs(i - state.progress) > 0.08 || state.open > 0.01 || state.intro < 0.98) return null;
+    if (Math.abs(i - state.progress) > 0.08 || state.open > 0.01 || state.loading > 0.01 || state.intro < 0.98) return null;
     const d = discs[i];
     d.root.updateMatrixWorld(true);
     const w = window.innerWidth;

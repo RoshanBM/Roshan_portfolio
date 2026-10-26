@@ -15,7 +15,7 @@ Open the address it prints (usually http://localhost:5173).
 
 ## Edit the content
 
-Everything you would want to change lives in `src/content.js`: names, credits, highlights, projects, roles, papers and links. The disc artwork is drawn in code in `src/discArt.js`, so there are no images to manage. Your CV is `public/Roshan-Mahashabde-CV.pdf`; replace that file to update it.
+Everything you would want to change lives in `src/content.js`: names, credits, highlights, projects, roles, papers and links. Each disc is drawn as a blank CD-R with a handwritten label, set by its `scribble` field. To print artwork on a disc instead, put a square image in `public/discs/` and set that disc's `discImage` to its path (for example `'/discs/about.jpg'`). Your CV is `public/Roshan-Mahashabde-CV.pdf`; replace that file to update it.
 
 ## Deploy to Vercel
 

@@ -1,6 +1,7 @@
 import '@fontsource/playfair-display/400.css';
 import '@fontsource-variable/geist';
 import '@fontsource/geist-mono/500.css';
+import '@fontsource/shadows-into-light/400.css';
 import './styles.css';
 
 import { gsap } from 'gsap';
@@ -14,7 +15,7 @@ import iconArrowRight from '@phosphor-icons/core/assets/regular/arrow-right.svg?
 import iconArrowUpRight from '@phosphor-icons/core/assets/regular/arrow-up-right.svg?raw';
 
 import { person, discs } from './content.js';
-import { drawDisc, drawBackAlpha, drawPoster, isLightArt } from './discArt.js';
+import { drawDisc, drawSpinBlur, drawBackAlpha, drawPoster, isLightArt } from './discArt.js';
 import { createStage, webglAvailable } from './scene.js';
 
 gsap.registerPlugin(ScrollTrigger, ScrambleTextPlugin, SplitText);
@@ -27,6 +28,13 @@ const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
+const loadImage = (src) =>
+  new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
 const wait = (s) => new Promise((r) => setTimeout(r, s * 1000));
 
 function fillIcons(root = document) {
@@ -45,8 +53,6 @@ const rowsEl = $('.info__rows');
 const highlightsEl = $('.highlights');
 const dockList = $('.dock__list');
 const hit = $('.disc-hit');
-const ringSvg = $('.disc-hit__ring');
-const ringPath = $('.disc-hit__ring path');
 const panel = $('.panel');
 const panelScroll = $('.panel__scroll');
 const closeBtn = $('.panel__close');
@@ -182,36 +188,7 @@ function updateActive() {
   setInfo(active, true);
 }
 
-/* ---------- hit area + hand-drawn ring ---------- */
-
-// A loose, slightly overshooting loop, like a pen circling the disc
-let ringSize = [0, 0];
-function drawRing(w, h) {
-  if (Math.abs(w - ringSize[0]) < 1 && Math.abs(h - ringSize[1]) < 1) return;
-  ringSize = [w, h];
-  const pad = 14;
-  const W = w * 1.08 + pad * 2;
-  const H = h * 1.1 + pad * 2;
-  ringSvg.setAttribute('viewBox', `0 0 ${W.toFixed(1)} ${H.toFixed(1)}`);
-  ringSvg.setAttribute('width', W.toFixed(1));
-  ringSvg.setAttribute('height', H.toFixed(1));
-  ringSvg.style.translate = `${(-W / 2).toFixed(1)}px ${(-H / 2).toFixed(1)}px`;
-  const rx = (w * 1.08) / 2;
-  const ry = (h * 1.1) / 2;
-  const steps = 96;
-  const start = -0.75;
-  const turn = Math.PI * 2 * 1.08;
-  let d = '';
-  for (let k = 0; k <= steps; k++) {
-    const u = k / steps;
-    const a = start + u * turn;
-    const wob = 1 + 0.03 * Math.sin(a * 2 + 0.6) + 0.035 * u;
-    const x = W / 2 + Math.cos(a) * rx * wob;
-    const y = H / 2 + Math.sin(a) * ry * wob - u * h * 0.04;
-    d += `${k ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
-  }
-  ringPath.setAttribute('d', d);
-}
+/* ---------- hit area over the centred disc ---------- */
 
 let hitVisible = false;
 function positionHit() {
@@ -231,7 +208,6 @@ function positionHit() {
   hit.style.width = `${e.rx * 2}px`;
   hit.style.height = `${e.ry * 2}px`;
   hit.style.transform = `translate(${e.cx - e.rx}px, ${e.cy - e.ry}px) rotate(${e.angle}rad)`;
-  drawRing(e.rx * 2, e.ry * 2);
   const label = `Open ${discs[e.index].label}`;
   if (hit.getAttribute('aria-label') !== label) hit.setAttribute('aria-label', label);
 }
@@ -240,13 +216,8 @@ let hovering = false;
 function setHover(on) {
   if (on === hovering) return;
   hovering = on;
+  // hovering only nudges the spin; there is no outline or ring
   stage.state.hover = on;
-  gsap.killTweensOf(ringPath);
-  if (on) {
-    gsap.fromTo(ringPath, { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: D(0.7), ease: 'power2.inOut' });
-  } else {
-    gsap.to(ringPath, { strokeDashoffset: -1, duration: D(0.45), ease: 'power2.in' });
-  }
 }
 
 hit.addEventListener('pointerenter', (e) => e.pointerType === 'mouse' && setHover(true));
@@ -359,7 +330,7 @@ function panelHTML(i) {
 let panelCtx;
 let lastFocus;
 
-function buildPanelContent(i) {
+function buildPanelContent(i, lead = 0) {
   panelCtx?.revert();
   panelScroll.innerHTML = panelHTML(i);
   panelScroll.scrollTop = 0;
@@ -374,14 +345,14 @@ function buildPanelContent(i) {
     if (reduce) return;
     const scroller = panelScroll;
     const title = SplitText.create('.panel__title', { type: 'chars', mask: 'chars' });
-    gsap.from(title.chars, { yPercent: 105, duration: 1, ease: 'expo.out', stagger: 0.035, delay: 0.5 });
+    gsap.from(title.chars, { yPercent: 105, duration: 1, ease: 'expo.out', stagger: 0.035, delay: lead + 0.5 });
     gsap.from('.panel__byline, .panel__spec', {
       y: 14,
       autoAlpha: 0,
       duration: 0.7,
       ease: 'power3.out',
       stagger: 0.06,
-      delay: 0.75,
+      delay: lead + 0.75,
     });
 
     gsap.fromTo(
@@ -460,12 +431,17 @@ function openPanel(i) {
   // the panel must be laid out before its ScrollTriggers measure anything
   panel.hidden = false;
   html.classList.add('is-locked');
-  buildPanelContent(i);
-  gsap
-    .timeline({ onComplete: () => ScrollTrigger.refresh() })
-    .to(panel, { yPercent: 0, duration: D(1.05), ease: 'expo.inOut' }, 0)
-    .to(stage.state, { open: 1, duration: D(1.05), ease: 'expo.inOut' }, 0)
-    .add(() => closeBtn.focus({ preventScroll: true }), D(0.6));
+  buildPanelContent(i, reduce ? 0 : 1.3);
+  const tl = gsap.timeline({ onComplete: () => ScrollTrigger.refresh() });
+  if (!reduce) {
+    // spin up like a drive reading the disc, hold, then open the page
+    tl.to(stage.state, { loading: 1, duration: 0.8, ease: 'power2.in' }).to({}, { duration: 0.5 });
+  }
+  tl.addLabel('open')
+    .to(panel, { yPercent: 0, duration: D(1.05), ease: 'expo.inOut' }, 'open')
+    .to(stage.state, { open: 1, duration: D(1.05), ease: 'expo.inOut' }, 'open')
+    .set(stage.state, { loading: 0 })
+    .add(() => closeBtn.focus({ preventScroll: true }), `open+=${D(0.6)}`);
 }
 
 function closePanel() {
@@ -484,7 +460,8 @@ function closePanel() {
       },
     })
     .to(panel, { autoAlpha: 0, y: 24, duration: D(0.35), ease: 'power2.in' }, 0)
-    .to(stage.state, { open: 0, duration: D(1.1), ease: 'expo.out' }, D(0.15));
+    .to(stage.state, { open: 0, duration: D(1.1), ease: 'expo.out' }, D(0.15))
+    .to(stage.state, { loading: 0, duration: D(0.4) }, 0);
   (lastFocus && document.contains(lastFocus) ? lastFocus : dockBtns[active]).focus({ preventScroll: true });
 }
 
@@ -552,6 +529,7 @@ async function boot() {
       document.fonts.load('400 40px "Playfair Display"'),
       document.fonts.load('500 20px "Geist Mono"'),
       document.fonts.load('600 20px "Geist Variable"'),
+      document.fonts.load('400 40px "Shadows Into Light"'),
     ]),
     wait(2.5),
   ]);
@@ -561,14 +539,17 @@ async function boot() {
   const canvases = [];
   for (let k = 0; k < discs.length; k++) {
     await nextFrame();
-    canvases.push(drawDisc(discs[k], size, person.monogram));
+    // optional artwork: set discImage in content.js (e.g. '/discs/about.jpg') to replace the blank CD-R face
+    const img = discs[k].discImage ? await loadImage(discs[k].discImage) : null;
+    canvases.push(drawDisc(discs[k], size, person.monogram, img));
     setLoad(0.15 + (0.75 * (k + 1)) / discs.length);
   }
 
   try {
     if (!webglAvailable()) throw new Error('no webgl2');
-    stage = createStage($('.stage'), canvases, drawBackAlpha());
+    stage = createStage($('.stage'), canvases, canvases.map((c) => drawSpinBlur(c)), drawBackAlpha());
     stage.state.reduce = reduce;
+    if (import.meta.env.DEV) window.__stage = stage;
   } catch (err) {
     console.warn('Falling back to flat discs:', err);
     stage = createFallback(canvases);
