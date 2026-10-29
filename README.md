@@ -1,6 +1,6 @@
 # Roshan Mahashabde: portfolio
 
-Four discs (About, Projects, Experience, Research) rendered in 3D with Three.js, animated with GSAP (ScrollTrigger, ScrambleText, SplitText), built with Vite.
+Four discs (About, Projects, Experience, Research) rendered in 3D with Three.js, animated with GSAP (ScrollTrigger, ScrambleText), built with Vite. Each disc opens in a retro media-player window.
 
 ## Run it locally
 
@@ -15,7 +15,7 @@ Open the address it prints (usually http://localhost:5173).
 
 ## Edit the content
 
-Everything you would want to change lives in `src/content.js`: names, credits, highlights, projects, roles, papers and links. Each disc is drawn as a blank CD-R with a handwritten label, set by its `scribble` field. To print artwork on a disc instead, put a square image in `public/discs/` and set that disc's `discImage` to its path (for example `'/discs/about.jpg'`). Your CV is `public/Roshan-Mahashabde-CV.pdf`; replace that file to update it.
+Everything you would want to change lives in `src/content.js`: names, credits, highlights, projects, roles, papers and links. Each disc is drawn as a blank CD-R with a handwritten label, set by its `scribble` field. To print artwork on a disc instead, put a square image in `public/discs/` and set that disc's `discImage` to its path (for example `'/discs/about.jpg'`). Clicking a disc opens the RBM Media Player window: About as an artist page, the other discs as tracklists. To use a real photo on the artist page, set `person.photo`; to give a track its own cover, set its `cover` field. Your CV is `public/Roshan-Mahashabde-CV.pdf`; replace that file to update it.
 
 ## Deploy to Vercel
 
@@ -35,5 +35,6 @@ Everything you would want to change lives in `src/content.js`: names, credits, h
 ## How it works
 
 - `src/scene.js` builds each disc (printed label, clear hub, iridescent underside) and lays them out from the scroll position.
-- `src/main.js` handles scrolling between discs, the credits table, the hover ring, the detail view and `#hash` links (for example `/#projects` opens the Projects disc directly).
+- `src/main.js` handles scrolling between discs, the credits table, opening and closing the player, and `#hash` links (for example `/#projects` opens the Projects disc directly).
+- `src/player.js` and `src/player.css` are the RBM Media Player window.
 - Respects `prefers-reduced-motion` and `prefers-color-scheme`, and falls back to flat images if WebGL is unavailable.

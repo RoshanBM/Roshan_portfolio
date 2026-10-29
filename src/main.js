@@ -2,27 +2,28 @@ import '@fontsource/playfair-display/400.css';
 import '@fontsource-variable/geist';
 import '@fontsource/geist-mono/500.css';
 import '@fontsource/shadows-into-light/400.css';
+import '@fontsource/press-start-2p/400.css';
+import '@fontsource/vt323/400.css';
+import '@fontsource-variable/pixelify-sans';
 import './styles.css';
+import './player.css';
 
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
-import { SplitText } from 'gsap/SplitText';
 
 import iconDownload from '@phosphor-icons/core/assets/regular/download-simple.svg?raw';
-import iconX from '@phosphor-icons/core/assets/regular/x.svg?raw';
-import iconArrowRight from '@phosphor-icons/core/assets/regular/arrow-right.svg?raw';
-import iconArrowUpRight from '@phosphor-icons/core/assets/regular/arrow-up-right.svg?raw';
 
 import { person, discs } from './content.js';
-import { drawDisc, drawSpinBlur, drawBackAlpha, drawPoster, isLightArt } from './discArt.js';
+import { drawDisc, drawSpinBlur, drawBackAlpha } from './discArt.js';
 import { createStage, webglAvailable } from './scene.js';
+import { createPlayer } from './player.js';
 
-gsap.registerPlugin(ScrollTrigger, ScrambleTextPlugin, SplitText);
+gsap.registerPlugin(ScrollTrigger, ScrambleTextPlugin);
 
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const D = (t) => (reduce ? 0 : t);
-const ICONS = { download: iconDownload, x: iconX, arrow: iconArrowRight, out: iconArrowUpRight };
+const ICONS = { download: iconDownload };
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 const esc = (s) =>
@@ -53,9 +54,7 @@ const rowsEl = $('.info__rows');
 const highlightsEl = $('.highlights');
 const dockList = $('.dock__list');
 const hit = $('.disc-hit');
-const panel = $('.panel');
-const panelScroll = $('.panel__scroll');
-const closeBtn = $('.panel__close');
+const dock = $('.dock');
 
 $('[data-cv]').href = person.cv;
 $('[data-email]').href = `mailto:${person.email}`;
@@ -170,8 +169,8 @@ function createFallback(canvases) {
 let stage;
 let active = 0;
 let target = 0;
-let panelOpen = false;
-let panelIndex = -1;
+let playerOpen = false;
+let playerIndex = -1;
 
 function sectionHeight() {
   return track.firstElementChild.offsetHeight;
@@ -192,7 +191,7 @@ function updateActive() {
 
 let hitVisible = false;
 function positionHit() {
-  const e = panelOpen ? null : stage.activeEllipse();
+  const e = playerOpen ? null : stage.activeEllipse();
   if (!e) {
     if (hitVisible) {
       hit.hidden = true;
@@ -245,240 +244,100 @@ window.addEventListener('pointermove', (e) => {
 });
 
 window.addEventListener('keydown', (e) => {
-  if (panelOpen) {
+  if (playerOpen) {
     if (e.key === 'Escape') closeRoute();
-    if (e.key === 'Tab') trapFocus(e);
+    if (e.key === 'Tab') player.trapFocus(e);
     return;
   }
   if (e.key === 'ArrowRight') goTo(Math.min(active + 1, discs.length - 1));
   if (e.key === 'ArrowLeft') goTo(Math.max(active - 1, 0));
 });
 
-/* ---------- detail panel ---------- */
+/* ---------- media player window ---------- */
 
-const HILL =
-  '<svg class="band__hill" viewBox="0 0 1440 200" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0H1440V118C1300 124 1210 66 1060 42C930 22 820 72 700 66C560 58 470 12 330 22C200 31 110 98 0 106Z"/></svg>';
-const posters = new Map();
-
-function posterFor(i) {
-  if (!posters.has(i)) {
-    const w = window.innerWidth < 700 ? 900 : 1800;
-    posters.set(i, drawPoster(discs[i], w, Math.round(w * 0.62)));
-  }
-  return posters.get(i);
-}
-
-function panelHTML(i) {
-  const d = discs[i];
-  const next = discs[(i + 1) % discs.length];
-  const link = ([label, href]) =>
-    `<a class="tlink" href="${esc(href)}" target="_blank" rel="noopener">${esc(label)} <span class="icon" data-icon="out"></span></a>`;
-
-  return `
-  <header class="panel__head">
-    <h2 class="panel__title" id="panel-title">${esc(d.title)}</h2>
-    <p class="panel__byline">${d.byline.map(([k, v]) => `<span><span class="lbl">${esc(k)}</span>${esc(v)}</span>`).join('')}</p>
-  </header>
-  <dl class="panel__specs">
-    ${d.specs.map(([k, v]) => `<div class="panel__spec"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}
-  </dl>
-  <figure class="band ${isLightArt(d) ? '' : 'band--dark-ink'}">
-    ${HILL}
-    <img class="band__img" src="${posterFor(i)}" alt="">
-    <ul class="band__lines" aria-label="${esc(d.statement.join(' '))}">
-      ${d.statement.map((l) => `<li class="band__line" aria-hidden="true"><span>${esc(l)}</span></li>`).join('')}
-    </ul>
-  </figure>
-  <section class="panel__body">
-    <p class="panel__intro">${esc(d.intro)}</p>
-    <ol class="tracks">
-      ${d.tracks
-        .map(
-          (t, k) => `
-        <li class="track-item">
-          <span class="track-item__num">${String(k + 1).padStart(2, '0')}</span>
-          <div>
-            <h3 class="track-item__title">${esc(t.title)}</h3>
-            <p class="track-item__meta">${esc(t.meta)}</p>
-          </div>
-          <span class="track-item__time">${esc(t.time)}</span>
-          <div class="track-item__body">
-            ${t.body.map((p) => `<p>${esc(p)}</p>`).join('')}
-            ${t.links ? `<div class="track-item__links">${t.links.map(link).join('')}</div>` : ''}
-          </div>
-        </li>`
-        )
-        .join('')}
-    </ol>
-  </section>
-  <footer class="panel__foot">
-    <div class="foot__contact">
-      <a class="foot__big" href="mailto:${esc(person.email)}">Email me</a>
-      <div class="foot__links">
-        ${link(['LinkedIn', person.linkedin])}
-        ${link(['GitHub', person.github])}
-        <a class="tlink" href="${esc(person.cv)}" download>CV <span class="icon" data-icon="download"></span></a>
-      </div>
-    </div>
-    <button class="next" type="button" data-next="${(i + 1) % discs.length}">
-      <span><span class="lbl">Next disc</span><span class="next__title">${esc(next.title)}</span></span>
-      <span class="icon" data-icon="arrow"></span>
-    </button>
-  </footer>`;
-}
-
-let panelCtx;
 let lastFocus;
+let discRect = null; // where the centred disc sat when the player opened
+let closeMode = 'close';
 
-function buildPanelContent(i, lead = 0) {
-  panelCtx?.revert();
-  panelScroll.innerHTML = panelHTML(i);
-  panelScroll.scrollTop = 0;
-  fillIcons(panelScroll);
-  $('.next', panelScroll).addEventListener('click', (e) => {
-    const n = Number(e.currentTarget.dataset.next);
-    history.replaceState(null, '', `#${discs[n].id}`);
-    route();
-  });
+const player = createPlayer({
+  person,
+  discs,
+  reduce,
+  onClose: (mode) => {
+    closeMode = mode;
+    closeRoute();
+  },
+  // switching discs inside the player keeps the URL and the disc behind it in sync
+  onDisc: (i) => {
+    playerIndex = i;
+    history.replaceState(null, '', `#${discs[i].id}`);
+    syncDisc(i);
+  },
+});
 
-  panelCtx = gsap.context(() => {
-    if (reduce) return;
-    const scroller = panelScroll;
-    const title = SplitText.create('.panel__title', { type: 'chars', mask: 'chars' });
-    gsap.from(title.chars, { yPercent: 105, duration: 1, ease: 'expo.out', stagger: 0.035, delay: lead + 0.5 });
-    gsap.from('.panel__byline, .panel__spec', {
-      y: 14,
-      autoAlpha: 0,
-      duration: 0.7,
-      ease: 'power3.out',
-      stagger: 0.06,
-      delay: lead + 0.75,
-    });
-
-    gsap.fromTo(
-      '.band__img',
-      { yPercent: -8, scale: 1.12 },
-      {
-        yPercent: 8,
-        ease: 'none',
-        scrollTrigger: { trigger: '.band', scroller, start: 'top bottom', end: 'bottom top', scrub: true },
-      }
-    );
-    gsap.from('.band__line > span', {
-      yPercent: 110,
-      duration: 1.1,
-      ease: 'expo.out',
-      stagger: 0.09,
-      scrollTrigger: { trigger: '.band__lines', scroller, start: 'top 70%' },
-    });
-
-    SplitText.create('.panel__intro', {
-      type: 'lines',
-      mask: 'lines',
-      linesClass: 'line',
-      autoSplit: true,
-      onSplit: (self) =>
-        gsap.from(self.lines, {
-          yPercent: 100,
-          duration: 0.9,
-          ease: 'expo.out',
-          stagger: 0.07,
-          scrollTrigger: { trigger: '.panel__intro', scroller, start: 'top 85%' },
-        }),
-    });
-
-    const items = gsap.utils.toArray('.track-item');
-    gsap.set(items, { autoAlpha: 0, y: 18 });
-    ScrollTrigger.batch(items, {
-      scroller,
-      start: 'top 92%',
-      onEnter: (batch) => gsap.to(batch, { autoAlpha: 1, y: 0, duration: 0.7, ease: 'power3.out', stagger: 0.08 }),
-    });
-  }, panel);
+function syncDisc(i) {
+  if (i === active) return;
+  goTo(i, true);
+  target = i;
+  stage.state.progress = i;
+  active = i;
+  dockBtns.forEach((b, k) => b.setAttribute('aria-current', String(k === i)));
+  setInfo(i, false);
 }
 
-function openPanel(i) {
-  const switching = panelOpen;
-  panelIndex = i;
+// the landing-page UI steps back while the media player is open
+const CHROME = '.info, .corner, .highlights, .dock';
 
-  // keep the disc behind the panel in sync with what is open
-  if (i !== active) {
-    goTo(i, true);
-    target = i;
-    stage.state.progress = i;
-  }
+function rectOf(el) {
+  const r = el.getBoundingClientRect();
+  return { left: r.left, top: r.top, width: r.width, height: r.height };
+}
 
-  if (switching) {
-    gsap.to(panelScroll, {
-      autoAlpha: 0,
-      duration: D(0.25),
-      onComplete: () => {
-        buildPanelContent(i);
-        gsap.to(panelScroll, { autoAlpha: 1, duration: D(0.4) });
-        $('.panel__title', panelScroll).setAttribute('tabindex', '-1');
-        $('.panel__title', panelScroll).focus({ preventScroll: true });
-      },
-    });
+function openPlayer(i) {
+  playerIndex = i;
+  if (playerOpen) {
+    syncDisc(i);
+    player.show(i);
     return;
   }
 
-  panelOpen = true;
+  // capture the disc's outline before the hit area hides during the spin
+  if (!hit.hidden && hit.offsetWidth) discRect = rectOf(hit);
+  syncDisc(i);
+  playerOpen = true;
   lastFocus = document.activeElement;
   setHover(false);
-  gsap.killTweensOf([panel, stage.state]);
-  gsap.set(panel, { clearProps: 'all' });
-  gsap.set(panel, { yPercent: reduce ? 0 : 100 });
-  // the panel must be laid out before its ScrollTriggers measure anything
-  panel.hidden = false;
   html.classList.add('is-locked');
-  buildPanelContent(i, reduce ? 0 : 1.3);
-  const tl = gsap.timeline({ onComplete: () => ScrollTrigger.refresh() });
+  gsap.killTweensOf(stage.state);
+  gsap.to(CHROME, { autoAlpha: 0, duration: D(0.3), overwrite: 'auto' });
+
+  const tl = gsap.timeline();
   if (!reduce) {
-    // spin up like a drive reading the disc, hold, then open the page
-    tl.to(stage.state, { loading: 1, duration: 0.8, ease: 'power2.in' }).to({}, { duration: 0.5 });
+    // spin up like a drive reading the disc, then launch the app
+    tl.to(stage.state, { loading: 1, duration: 0.8, ease: 'power2.in' }).to({}, { duration: 0.3 });
   }
-  tl.addLabel('open')
-    .to(panel, { yPercent: 0, duration: D(1.05), ease: 'expo.inOut' }, 'open')
-    .to(stage.state, { open: 1, duration: D(1.05), ease: 'expo.inOut' }, 'open')
-    .set(stage.state, { loading: 0 })
-    .add(() => closeBtn.focus({ preventScroll: true }), `open+=${D(0.6)}`);
+  tl.add(() => player.open(i, discRect))
+    .to(stage.state, { open: 1, duration: D(0.9), ease: 'expo.inOut' }, '<')
+    .set(stage.state, { loading: 0 });
 }
 
-function closePanel() {
-  if (!panelOpen) return;
-  panelOpen = false;
+function closePlayer() {
+  if (!playerOpen) return;
+  playerOpen = false;
   html.classList.remove('is-locked');
-  gsap.killTweensOf([panel, stage.state]);
+  gsap.killTweensOf(stage.state);
+  // minimise shrinks the window into the dock; close returns it to the disc
+  const to = closeMode === 'min' ? rectOf(dock) : discRect;
+  closeMode = 'close';
+  player.close(to);
+  gsap.to(CHROME, { autoAlpha: 1, duration: D(0.4), delay: D(0.25), overwrite: 'auto' });
   gsap
-    .timeline({
-      onComplete: () => {
-        panel.hidden = true;
-        panelCtx?.revert();
-        panelCtx = null;
-        panelScroll.innerHTML = '';
-        gsap.set([panel, panelScroll], { clearProps: 'all' });
-      },
-    })
-    .to(panel, { autoAlpha: 0, y: 24, duration: D(0.35), ease: 'power2.in' }, 0)
-    .to(stage.state, { open: 0, duration: D(1.1), ease: 'expo.out' }, D(0.15))
-    .to(stage.state, { loading: 0, duration: D(0.4) }, 0);
-  (lastFocus && document.contains(lastFocus) ? lastFocus : dockBtns[active]).focus({ preventScroll: true });
-}
-
-function trapFocus(e) {
-  const focusables = $$('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])', panel).filter(
-    (el) => el.offsetParent !== null
-  );
-  if (!focusables.length) return;
-  const first = focusables[0];
-  const last = focusables[focusables.length - 1];
-  if (e.shiftKey && document.activeElement === first) {
-    e.preventDefault();
-    last.focus();
-  } else if (!e.shiftKey && document.activeElement === last) {
-    e.preventDefault();
-    first.focus();
-  }
+    .timeline()
+    .to(stage.state, { loading: 0, duration: D(0.3) }, 0)
+    .to(stage.state, { open: 0, duration: D(1.0), ease: 'expo.out' }, D(0.2));
+  (lastFocus && document.contains(lastFocus) && lastFocus !== hit ? lastFocus : dockBtns[active]).focus({
+    preventScroll: true,
+  });
 }
 
 /* ---------- routing via #hash ---------- */
@@ -501,13 +360,12 @@ function closeRoute() {
 function route() {
   const i = discs.findIndex((d) => `#${d.id}` === location.hash);
   if (i >= 0) {
-    if (!panelOpen || panelIndex !== i) openPanel(i);
-  } else if (panelOpen) {
-    closePanel();
+    if (!playerOpen || playerIndex !== i) openPlayer(i);
+  } else if (playerOpen) {
+    closePlayer();
   }
 }
 window.addEventListener('hashchange', route);
-closeBtn.addEventListener('click', closeRoute);
 
 /* ---------- boot ---------- */
 
@@ -530,6 +388,9 @@ async function boot() {
       document.fonts.load('500 20px "Geist Mono"'),
       document.fonts.load('600 20px "Geist Variable"'),
       document.fonts.load('400 40px "Shadows Into Light"'),
+      document.fonts.load('400 16px "Press Start 2P"'),
+      document.fonts.load('400 20px "VT323"'),
+      document.fonts.load('400 16px "Pixelify Sans Variable"'),
     ]),
     wait(2.5),
   ]);
@@ -574,11 +435,11 @@ async function boot() {
     const k = reduce ? 1 : 1 - Math.exp((-deltaMs / 1000) * 7);
     stage.state.progress += (target - stage.state.progress) * k;
     const idx = Math.round(stage.state.progress);
-    if (idx !== active && !panelOpen) {
+    if (idx !== active && !playerOpen) {
       active = idx;
       updateActive();
     }
-    if (!(panelOpen && stage.state.open >= 0.999)) stage.render();
+    if (!(playerOpen && stage.state.open >= 0.999)) stage.render();
     positionHit();
   });
 
@@ -594,8 +455,8 @@ async function boot() {
     .set('.loader', { display: 'none' })
     .to(stage.state, { intro: 1, duration: D(1.8), ease: 'expo.out' }, '-=0.45')
     .add(() => setInfo(active, true), '<0.25')
-    .from('.dock', { y: 40, autoAlpha: 0, duration: D(0.9), ease: 'expo.out' }, '<0.1')
-    .from('.corner__link', { y: -8, autoAlpha: 0, duration: D(0.6), stagger: 0.08 }, '<')
+    .from('.dock', { y: 40, autoAlpha: 0, duration: D(0.9), ease: 'expo.out', clearProps: 'transform,translate,rotate,scale' }, '<0.1')
+    .from('.corner__link', { y: -8, autoAlpha: 0, duration: D(0.6), stagger: 0.08, clearProps: 'transform,translate,rotate,scale' }, '<')
     .add(() => hashIndex >= 0 && route(), '<0.6');
 }
 

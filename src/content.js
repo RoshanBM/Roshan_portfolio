@@ -1,5 +1,6 @@
 // All site copy lives here. Edit this file to update the portfolio.
 // Keep hyphens (-) for ranges; the design avoids em dashes.
+// Any track can also take an optional `cover` image path (e.g. '/covers/gnss.jpg') to replace its generated cover art.
 
 export const person = {
   name: 'Roshan Balaji Mahashabde',
@@ -11,6 +12,8 @@ export const person = {
   linkedin: 'https://www.linkedin.com/in/roshan-mahashabde',
   github: 'https://github.com/RoshanBM',
   cv: '/Roshan-Mahashabde-CV.pdf',
+  // Optional: a square photo in public/ (e.g. '/me.jpg') for the artist page in the media player
+  photo: null,
 };
 
 export const discs = [
@@ -20,7 +23,7 @@ export const discs = [
     title: 'About',
     art: 'about',
     // Written on the disc in marker
-    scribble: 'RBM - ABOUT ME',
+    scribble: 'ABOUT ME',
     // Optional: put an image in public/discs/ and set e.g. '/discs/about.jpg' to print it on the disc
     discImage: null,
     // Shown in the top-left table while the disc is centred
@@ -43,10 +46,20 @@ export const discs = [
     specs: [
       ['Degree', 'MSc Applied Artificial Intelligence'],
       ['Graduating', 'January 2027'],
-      ['Right to work', 'United Kingdom'],
+      ['Based in', 'London, UK'],
       ['Languages', 'English (fluent)'],
     ],
     statement: ['I turn research', 'into software', 'that reaches', 'real users'],
+    // Media player: column headings for the tracklist (title, meta, time)
+    columns: ['Title', 'Institution', 'Dates'],
+    // Artist page: focus areas shown as genre tags
+    genres: ['LLMs', 'Computer vision', 'Predictive modelling', 'Data pipelines', 'Explainable AI'],
+    // Artist page: skills, grouped
+    toolkit: [
+      ['Languages', ['Python', 'MATLAB', 'SQL', 'C/C++']],
+      ['Machine learning', ['PyTorch', 'TensorFlow', 'scikit-learn', 'Hugging Face', 'XGBoost', 'OpenCV']],
+      ['Data and engineering', ['Pandas', 'NumPy', 'SQLite', 'Plotly.js', 'Docker', 'Git', 'Flask', 'HTML/CSS/JavaScript']],
+    ],
     intro:
       'Engineering graduate finishing an MSc in Applied Artificial Intelligence at Warwick, with three research internships and four peer-reviewed publications. I build, deploy and test machine learning systems across LLMs, computer vision and data pipelines.',
     tracks: [
@@ -69,16 +82,6 @@ export const discs = [
         ],
       },
       {
-        title: 'Toolkit',
-        meta: 'Languages, ML, data, engineering',
-        time: 'Skills',
-        body: [
-          'Python, MATLAB, SQL, C/C++.',
-          'PyTorch, TensorFlow, scikit-learn, Hugging Face, XGBoost, OpenCV.',
-          'Pandas, NumPy, SQLite, Plotly.js, Docker, Git, Flask, HTML/CSS/JavaScript.',
-        ],
-      },
-      {
         title: 'Certificates',
         meta: 'NPTEL',
         time: '2023-2024',
@@ -95,7 +98,7 @@ export const discs = [
     title: 'Projects',
     art: 'projects',
     // Written on the disc in marker
-    scribble: 'RBM - PROJECTS',
+    scribble: 'PROJECTS',
     discImage: null,
     credits: [
       ['Tracks', '6 projects'],
@@ -118,6 +121,7 @@ export const discs = [
       ['Delivery', 'Dashboards, notebooks, web apps'],
     ],
     statement: ['Models', 'you can open,', 'test and', 'actually use'],
+    columns: ['Title', 'Context', 'Date'],
     intro:
       'A mix of research and full-stack work. Each project ends in something a person can run: a dashboard, a simulator or a tested notebook.',
     tracks: [
@@ -185,7 +189,7 @@ export const discs = [
     title: 'Experience',
     art: 'experience',
     // Written on the disc in marker
-    scribble: 'RBM - EXPERIENCE',
+    scribble: 'EXPERIENCE',
     discImage: null,
     credits: [
       ['Tracks', '3 internships'],
@@ -208,6 +212,7 @@ export const discs = [
       ['Papers', '2 from internship work'],
     ],
     statement: ['From the lab', 'to the teams', 'who use it', 'every day'],
+    columns: ['Role', 'Organisation', 'Dates'],
     intro:
       'Three research internships, each ending with a system that other people kept using after I left.',
     tracks: [
@@ -248,7 +253,7 @@ export const discs = [
     title: 'Research',
     art: 'research',
     // Written on the disc in marker
-    scribble: 'RBM - RESEARCH',
+    scribble: 'RESEARCH',
     discImage: null,
     credits: [
       ['Tracks', '4 papers'],
@@ -271,6 +276,9 @@ export const discs = [
       ['Domains', 'Biosensing, industry, business'],
     ],
     statement: ['Four papers', 'across sensing,', 'machine learning', 'and language'],
+    columns: ['Title', 'Venue', 'Year'],
+    // Label shown above each paper's body text in the player
+    bodyLabel: 'Authors',
     intro:
       'Peer-reviewed work from my undergraduate years, spanning fibre-optic biosensors, predictive modelling and language models for industrial systems.',
     tracks: [

@@ -531,16 +531,84 @@ export function drawBackAlpha(size = 256) {
   return c;
 }
 
-export function drawPoster(disc, w, h) {
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  const ctx = c.getContext('2d');
-  ARTS[disc.art].draw(ctx, w, h);
-  grain(ctx, w, h, 12, 99);
-  return c.toDataURL('image/jpeg', 0.84);
+/* ---------- cover art for the media player ---------- */
+
+const PIXEL = '"Press Start 2P", "VT323", monospace';
+
+// Pixel badge with a track number, like a sticker on a jewel case
+function pixelBadge(ctx, text, S) {
+  const size = Math.round(S * 0.085);
+  ctx.font = `400 ${size}px ${PIXEL}`;
+  const pad = Math.round(size * 0.55);
+  const w = Math.ceil(ctx.measureText(text).width) + pad * 2;
+  const h = size + pad * 2;
+  const x = Math.round(S * 0.06);
+  const y = Math.round(S - h - S * 0.06);
+  ctx.fillStyle = 'rgba(14,16,20,0.88)';
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = '#f4f1e8';
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+  ctx.fillText(text, x + pad, y + pad + Math.round(size * 0.08));
 }
 
-export function isLightArt(disc) {
-  return ARTS[disc.art].light;
+/**
+ * Square cover for one track (k >= 0) or for the whole disc (k = -1).
+ * Each track uses its disc's artwork with a hue shift, so covers in one list
+ * belong together but stay distinct.
+ */
+export function drawCover(disc, k = -1, size = 192) {
+  const S = size;
+  const art = document.createElement('canvas');
+  art.width = art.height = S;
+  ARTS[disc.art].draw(art.getContext('2d'), S, S);
+
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const ctx = c.getContext('2d');
+  if (k >= 0 && 'filter' in ctx) ctx.filter = `hue-rotate(${k * 47}deg) saturate(1.1)`;
+  ctx.drawImage(art, 0, 0);
+  ctx.filter = 'none';
+  grain(ctx, S, S, 10, 41 + k);
+
+  if (k >= 0) {
+    pixelBadge(ctx, String(k + 1).padStart(2, '0'), S);
+  } else {
+    // disc cover: the title in 8-bit type across the top
+    const t = disc.title.toUpperCase();
+    let fs = S * 0.1;
+    ctx.font = `400 ${fs}px ${PIXEL}`;
+    while (ctx.measureText(t).width > S * 0.84 && fs > S * 0.05) {
+      fs *= 0.92;
+      ctx.font = `400 ${fs}px ${PIXEL}`;
+    }
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = ARTS[disc.art].light ? 'rgba(244,241,232,0.95)' : 'rgba(26,22,30,0.92)';
+    ctx.fillText(t, S * 0.08, S * 0.09);
+  }
+  return c.toDataURL('image/png');
+}
+
+// Artist portrait placeholder used until a real photo is set
+export function drawArtistArt(monogram, size = 320) {
+  const S = size;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const ctx = c.getContext('2d');
+  ARTS.about.draw(ctx, S, S);
+  grain(ctx, S, S, 10, 5);
+  let fs = S * 0.2;
+  ctx.font = `400 ${fs}px ${PIXEL}`;
+  while (ctx.measureText(monogram).width > S * 0.8) {
+    fs *= 0.92;
+    ctx.font = `400 ${fs}px ${PIXEL}`;
+  }
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(14,16,20,0.35)';
+  ctx.fillText(monogram, S / 2 + S * 0.012, S / 2 + S * 0.012);
+  ctx.fillStyle = 'rgba(244,241,232,0.96)';
+  ctx.fillText(monogram, S / 2, S / 2);
+  return c.toDataURL('image/png');
 }
