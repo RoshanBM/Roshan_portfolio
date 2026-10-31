@@ -359,7 +359,7 @@ button {
 }
 
 @media (hover: none), (max-width: 1024px) {
-  /* a swipe right means the previous disc, not the browser's back gesture */
+  /* a stray sideways swipe should not trigger the browser's back gesture and leave the site */
   html,
   body {
     overscroll-behavior-x: none;
@@ -367,7 +367,7 @@ button {
   .arrows {
     display: block;
   }
-  /* one disc per swipe on touch screens, however hard the flick */
+  /* one disc per vertical flick on touch screens, however hard */
   .track > section {
     scroll-snap-stop: always;
   }

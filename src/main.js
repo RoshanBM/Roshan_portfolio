@@ -11,7 +11,6 @@ import './player.css';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
-import { Observer } from 'gsap/Observer';
 
 import iconDownload from '@phosphor-icons/core/assets/regular/download-simple.svg?raw';
 import iconCaretLeft from '@phosphor-icons/core/assets/regular/caret-left.svg?raw';
@@ -22,7 +21,7 @@ import { drawDisc, drawSpinBlur, drawBackAlpha } from './discArt.js';
 import { createStage, webglAvailable } from './scene.js';
 import { createPlayer } from './player.js';
 
-gsap.registerPlugin(ScrollTrigger, ScrambleTextPlugin, Observer);
+gsap.registerPlugin(ScrollTrigger, ScrambleTextPlugin);
 
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const D = (t) => (reduce ? 0 : t);
@@ -179,7 +178,7 @@ function createFallback(canvases) {
 let stage;
 let active = 0;
 let target = 0;
-let aim = null; // the disc a scroll is heading to, so quick repeat taps or swipes each move one disc
+let aim = null; // the disc a scroll is heading to, so quick repeat taps on the arrows each move one disc
 let playerOpen = false;
 let playerIndex = -1;
 
@@ -341,24 +340,6 @@ function syncDisc(i) {
 // the landing-page UI steps back while the media player is open
 const CHROME = '.info, .corner, .highlights, .dock, .arrows';
 
-// horizontal swipes on touch screens move one disc per gesture
-let swiped = false;
-const swipe = Observer.create({
-  target: window,
-  type: 'touch',
-  lockAxis: true,
-  tolerance: 24,
-  onPress: () => (swiped = false),
-  onLeft: (self) => swipeTo(self, 1),
-  onRight: (self) => swipeTo(self, -1),
-});
-function swipeTo(self, dir) {
-  // taps and mostly vertical drags stay as taps and page scrolls
-  if (swiped || Math.abs(self.x - self.startX) < Math.abs(self.y - self.startY) * 1.5) return;
-  swiped = true;
-  step(dir);
-}
-
 function rectOf(el) {
   const r = el.getBoundingClientRect();
   return { left: r.left, top: r.top, width: r.width, height: r.height };
@@ -376,7 +357,6 @@ function openPlayer(i) {
   if (!hit.hidden && hit.offsetWidth) discRect = rectOf(hit);
   syncDisc(i);
   playerOpen = true;
-  swipe.disable();
   lastFocus = document.activeElement;
   setHover(false);
   html.classList.add('is-locked');
@@ -396,7 +376,6 @@ function openPlayer(i) {
 function closePlayer() {
   if (!playerOpen) return;
   playerOpen = false;
-  swipe.enable();
   html.classList.remove('is-locked');
   gsap.killTweensOf(stage.state);
   // minimise shrinks the window into the dock; close returns it to the disc
