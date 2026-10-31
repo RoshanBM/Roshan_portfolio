@@ -179,6 +179,7 @@ let stage;
 let active = 0;
 let target = 0;
 let aim = null; // the disc a scroll is heading to, so quick repeat taps on the arrows each move one disc
+let aimAt = 0;
 let playerOpen = false;
 let playerIndex = -1;
 
@@ -190,13 +191,20 @@ function goTo(i, instant = false) {
   const n = discs.length;
   const idx = (i + n) % n;
   aim = idx;
+  aimAt = performance.now();
   updateArrows();
   window.scrollTo({ top: idx * sectionHeight(), behavior: instant || reduce ? 'auto' : 'smooth' });
 }
 
+// The disc the arrows count from. The aim is only trusted briefly: once the scroll arrives, the
+// visitor touches the page, or a moment passes, the real scroll position takes over again.
+function currentDisc() {
+  return aim !== null && performance.now() - aimAt < 1200 ? aim : Math.round(target);
+}
+
 // one disc back or forward, stopping at the ends like the keyboard arrows
 function step(dir) {
-  const from = aim ?? active;
+  const from = currentDisc();
   const to = Math.min(Math.max(from + dir, 0), discs.length - 1);
   if (to !== from) goTo(to);
 }
@@ -204,13 +212,16 @@ function step(dir) {
 function updateActive() {
   dockBtns.forEach((b, i) => b.setAttribute('aria-current', String(i === active)));
   setInfo(active, true);
-  updateArrows();
 }
 
 /* ---------- arrows (phones and tablets) ---------- */
 
+// runs every frame from the ticker, so it only touches the DOM when the disc changes
+let arrowsFor = -1;
 function updateArrows() {
-  const i = aim ?? active;
+  const i = currentDisc();
+  if (i === arrowsFor) return;
+  arrowsFor = i;
   const last = discs.length - 1;
   const hadFocus = document.activeElement;
   arrowPrev.disabled = i === 0;
@@ -238,6 +249,9 @@ function placeArrows() {
 
 arrowPrev.addEventListener('click', () => step(-1));
 arrowNext.addEventListener('click', () => step(1));
+// a scroll or swipe of the visitor's own takes over from any arrow-driven scroll
+window.addEventListener('touchstart', (e) => e.target.closest?.('.arrow') || (aim = null), { passive: true });
+window.addEventListener('wheel', () => (aim = null), { passive: true });
 
 /* ---------- hit area over the centred disc ---------- */
 
@@ -479,12 +493,11 @@ async function boot() {
     trigger: track,
     start: 'top top',
     end: 'bottom bottom',
-    onUpdate: (self) => (target = self.progress * (discs.length - 1)),
+    onUpdate: (self) => {
+      target = self.progress * (discs.length - 1);
+      if (aim !== null && Math.abs(target - aim) < 0.01) aim = null; // arrived
+    },
     onRefresh: (self) => (target = self.progress * (discs.length - 1)),
-  });
-  ScrollTrigger.addEventListener('scrollEnd', () => {
-    aim = null;
-    updateArrows();
   });
   stage.state.progress = target;
   active = Math.round(target);
@@ -501,6 +514,7 @@ async function boot() {
     }
     if (!(playerOpen && stage.state.open >= 0.999)) stage.render();
     positionHit();
+    updateArrows();
   });
 
   setLoad(1);
