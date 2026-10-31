@@ -11,19 +11,22 @@ import './player.css';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
+import { Observer } from 'gsap/Observer';
 
 import iconDownload from '@phosphor-icons/core/assets/regular/download-simple.svg?raw';
+import iconCaretLeft from '@phosphor-icons/core/assets/regular/caret-left.svg?raw';
+import iconCaretRight from '@phosphor-icons/core/assets/regular/caret-right.svg?raw';
 
 import { person, discs } from './content.js';
 import { drawDisc, drawSpinBlur, drawBackAlpha } from './discArt.js';
 import { createStage, webglAvailable } from './scene.js';
 import { createPlayer } from './player.js';
 
-gsap.registerPlugin(ScrollTrigger, ScrambleTextPlugin);
+gsap.registerPlugin(ScrollTrigger, ScrambleTextPlugin, Observer);
 
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const D = (t) => (reduce ? 0 : t);
-const ICONS = { download: iconDownload };
+const ICONS = { download: iconDownload, caretLeft: iconCaretLeft, caretRight: iconCaretRight };
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 const esc = (s) =>
@@ -55,6 +58,8 @@ const highlightsEl = $('.highlights');
 const dockList = $('.dock__list');
 const hit = $('.disc-hit');
 const dock = $('.dock');
+const arrowPrev = $('.arrow--prev');
+const arrowNext = $('.arrow--next');
 
 $('[data-cv]').href = person.cv;
 $('[data-email]').href = `mailto:${person.email}`;
@@ -163,12 +168,18 @@ function createFallback(canvases) {
       const r = imgs[i].getBoundingClientRect();
       return { index: i, cx: r.left + r.width / 2, cy: r.top + r.height / 2, rx: r.width / 2, ry: r.height / 2, angle: 0 };
     },
+    restEllipse() {
+      // mirrors .fallback img in styles.css
+      const r = Math.min(window.innerHeight * 0.6, window.innerWidth * 0.7) / 2;
+      return { cx: window.innerWidth / 2, cy: window.innerHeight * 0.48, rx: r, ry: r, angle: 0 };
+    },
   };
 }
 
 let stage;
 let active = 0;
 let target = 0;
+let aim = null; // the disc a scroll is heading to, so quick repeat taps or swipes each move one disc
 let playerOpen = false;
 let playerIndex = -1;
 
@@ -179,13 +190,55 @@ function sectionHeight() {
 function goTo(i, instant = false) {
   const n = discs.length;
   const idx = (i + n) % n;
+  aim = idx;
+  updateArrows();
   window.scrollTo({ top: idx * sectionHeight(), behavior: instant || reduce ? 'auto' : 'smooth' });
+}
+
+// one disc back or forward, stopping at the ends like the keyboard arrows
+function step(dir) {
+  const from = aim ?? active;
+  const to = Math.min(Math.max(from + dir, 0), discs.length - 1);
+  if (to !== from) goTo(to);
 }
 
 function updateActive() {
   dockBtns.forEach((b, i) => b.setAttribute('aria-current', String(i === active)));
   setInfo(active, true);
+  updateArrows();
 }
+
+/* ---------- arrows (phones and tablets) ---------- */
+
+function updateArrows() {
+  const i = aim ?? active;
+  const last = discs.length - 1;
+  const hadFocus = document.activeElement;
+  arrowPrev.disabled = i === 0;
+  arrowNext.disabled = i === last;
+  arrowPrev.setAttribute('aria-label', i === 0 ? 'Previous disc' : `Previous disc: ${discs[i - 1].label}`);
+  arrowNext.setAttribute('aria-label', i === last ? 'Next disc' : `Next disc: ${discs[i + 1].label}`);
+  // reaching an end disables the arrow that was pressed, so hand focus to the other one
+  if (hadFocus === arrowPrev && arrowPrev.disabled) arrowNext.focus({ preventScroll: true });
+  if (hadFocus === arrowNext && arrowNext.disabled) arrowPrev.focus({ preventScroll: true });
+}
+
+// sit the arrows either side of where the centred disc rests, vertically centred on it
+function placeArrows() {
+  const e = stage.restEllipse();
+  const size = arrowPrev.offsetWidth || 44;
+  const gap = 10;
+  const edge = 12;
+  const half = Math.hypot(e.rx * Math.cos(e.angle), e.ry * Math.sin(e.angle));
+  const y = e.cy - size / 2;
+  const left = Math.max(edge, e.cx - half - gap - size);
+  const right = Math.min(window.innerWidth - edge - size, e.cx + half + gap);
+  arrowPrev.style.transform = `translate(${left}px, ${y}px)`;
+  arrowNext.style.transform = `translate(${right}px, ${y}px)`;
+}
+
+arrowPrev.addEventListener('click', () => step(-1));
+arrowNext.addEventListener('click', () => step(1));
 
 /* ---------- hit area over the centred disc ---------- */
 
@@ -286,7 +339,25 @@ function syncDisc(i) {
 }
 
 // the landing-page UI steps back while the media player is open
-const CHROME = '.info, .corner, .highlights, .dock';
+const CHROME = '.info, .corner, .highlights, .dock, .arrows';
+
+// horizontal swipes on touch screens move one disc per gesture
+let swiped = false;
+const swipe = Observer.create({
+  target: window,
+  type: 'touch',
+  lockAxis: true,
+  tolerance: 24,
+  onPress: () => (swiped = false),
+  onLeft: (self) => swipeTo(self, 1),
+  onRight: (self) => swipeTo(self, -1),
+});
+function swipeTo(self, dir) {
+  // taps and mostly vertical drags stay as taps and page scrolls
+  if (swiped || Math.abs(self.x - self.startX) < Math.abs(self.y - self.startY) * 1.5) return;
+  swiped = true;
+  step(dir);
+}
 
 function rectOf(el) {
   const r = el.getBoundingClientRect();
@@ -305,6 +376,7 @@ function openPlayer(i) {
   if (!hit.hidden && hit.offsetWidth) discRect = rectOf(hit);
   syncDisc(i);
   playerOpen = true;
+  swipe.disable();
   lastFocus = document.activeElement;
   setHover(false);
   html.classList.add('is-locked');
@@ -324,6 +396,7 @@ function openPlayer(i) {
 function closePlayer() {
   if (!playerOpen) return;
   playerOpen = false;
+  swipe.enable();
   html.classList.remove('is-locked');
   gsap.killTweensOf(stage.state);
   // minimise shrinks the window into the dock; close returns it to the disc
@@ -416,6 +489,9 @@ async function boot() {
     stage = createFallback(canvases);
   }
 
+  placeArrows();
+  window.addEventListener('resize', placeArrows);
+
   // start where the URL points, if anywhere
   const hashIndex = discs.findIndex((d) => `#${d.id}` === location.hash);
   if (hashIndex > 0) goTo(hashIndex, true);
@@ -427,9 +503,14 @@ async function boot() {
     onUpdate: (self) => (target = self.progress * (discs.length - 1)),
     onRefresh: (self) => (target = self.progress * (discs.length - 1)),
   });
+  ScrollTrigger.addEventListener('scrollEnd', () => {
+    aim = null;
+    updateArrows();
+  });
   stage.state.progress = target;
   active = Math.round(target);
   dockBtns.forEach((b, i) => b.setAttribute('aria-current', String(i === active)));
+  updateArrows();
 
   gsap.ticker.add((time, deltaMs) => {
     const k = reduce ? 1 : 1 - Math.exp((-deltaMs / 1000) * 7);
@@ -457,6 +538,7 @@ async function boot() {
     .add(() => setInfo(active, true), '<0.25')
     .from('.dock', { y: 40, autoAlpha: 0, duration: D(0.9), ease: 'expo.out', clearProps: 'transform,translate,rotate,scale' }, '<0.1')
     .from('.corner__link', { y: -8, autoAlpha: 0, duration: D(0.6), stagger: 0.08, clearProps: 'transform,translate,rotate,scale' }, '<')
+    .from('.arrows', { autoAlpha: 0, duration: D(0.6) }, '<0.2')
     .add(() => hashIndex >= 0 && route(), '<0.6');
 }
 

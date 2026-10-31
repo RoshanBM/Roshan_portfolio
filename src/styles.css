@@ -318,6 +318,61 @@ button {
   outline-offset: 10px;
 }
 
+/* ---------- arrows beside the disc (phones and tablets) ---------- */
+
+/* main.js places each arrow with a transform beside the resting disc and fades .arrows with GSAP */
+.arrows {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dock);
+  pointer-events: none;
+}
+.arrow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 20px;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  transition-property: scale, opacity;
+  transition-duration: 0.2s;
+  transition-timing-function: var(--ease-out);
+}
+.arrow:active:not(:disabled) {
+  scale: 0.96;
+}
+.arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+@media (hover: none), (max-width: 1024px) {
+  /* a swipe right means the previous disc, not the browser's back gesture */
+  html,
+  body {
+    overscroll-behavior-x: none;
+  }
+  .arrows {
+    display: block;
+  }
+  /* one disc per swipe on touch screens, however hard the flick */
+  .track > section {
+    scroll-snap-stop: always;
+  }
+}
+
 /* ---------- highlights under the disc ---------- */
 
 .highlights {

@@ -4,6 +4,9 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 // Base orientation of a disc lying on a table, seen from above at an angle
 const BASE = { x: -0.86, y: 0.12, z: 0.42 };
 
+// Phones and tablets (touch, or 1024px wide and below): matches the arrow buttons in styles.css
+const COMPACT = window.matchMedia('(hover: none), (max-width: 1024px)');
+
 export function createStage(canvas, discCanvases, blurCanvases, backAlphaCanvas) {
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -23,6 +26,7 @@ export function createStage(canvas, discCanvases, blurCanvases, backAlphaCanvas)
 
   const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 100);
   camera.position.set(0, 0, 12);
+  camera.updateMatrixWorld();
 
   const key = new THREE.DirectionalLight(0xffffff, 0.55);
   key.position.set(-4, 6, 7);
@@ -127,16 +131,24 @@ export function createStage(canvas, discCanvases, blurCanvases, backAlphaCanvas)
     const visH = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
     const visW = visH * camera.aspect;
     const mobile = camera.aspect < 0.85;
-    const R = mobile ? Math.min(visW * 0.45, visH * 0.27) : Math.min(visH * 0.3, visW * 0.24);
+    const compact = COMPACT.matches;
+    // compact portrait leaves room at the sides for the arrows and the next disc
+    const R = mobile
+      ? Math.min(visW * (compact ? 0.38 : 0.45), visH * 0.27)
+      : Math.min(visH * 0.3, visW * 0.24);
     const Rn = R * (mobile ? 0.42 : 0.36);
+    let xN = visW / 2 - Rn * (mobile ? 0.35 : 0.75);
+    // keep the next disc clear of the centred one, peeking in from the right edge if need be
+    if (compact) xN = Math.max(xN, R * 0.97 + visW * 0.03 + Rn * 0.9);
     state.layout = {
       visW,
       visH,
       R,
       Rn,
-      xN: visW / 2 - Rn * (mobile ? 0.35 : 0.75),
+      xN,
       yC: mobile ? -visH * 0.015 : -visH * 0.03,
       yN: mobile ? -visH * 0.05 : -visH * 0.07,
+      compact,
     };
   }
   layout();
@@ -184,7 +196,9 @@ export function createStage(canvas, discCanvases, blurCanvases, backAlphaCanvas)
       const omega = d.speed + (state.open * 4 + state.loading * 28) * focus + (1 - state.intro) * 3;
       d.spin.rotation.z -= dt * omega;
 
-      const fade = Math.min(Math.max(1 - (ad - 1.15) / 0.4, 0), 1) * (focus > 0.5 ? 1 : state.intro);
+      let fade = Math.min(Math.max(1 - (ad - 1.15) / 0.4, 0), 1) * (focus > 0.5 ? 1 : state.intro);
+      // on phones and tablets the previous disc fades out as it slides past the centre
+      if (L.compact && dist < 0) fade *= Math.min(Math.max(1 + dist * 2.5, 0), 1);
       d.root.visible = fade > 0.001;
       d.mats.forEach((m, k) => (m.opacity = d.baseOpacity[k] * fade));
       const b = Math.min(Math.max((omega - 4) / 14, 0), 1);
@@ -199,6 +213,25 @@ export function createStage(canvas, discCanvases, blurCanvases, backAlphaCanvas)
     if (Math.abs(i - state.progress) > 0.08 || state.open > 0.01 || state.loading > 0.01 || state.intro < 0.98) return null;
     const d = discs[i];
     d.root.updateMatrixWorld(true);
+    return { index: i, ...fitEllipse(d.spin) };
+  }
+
+  // Where the centred disc rests once it settles, used to place the arrow buttons
+  const ghost = new THREE.Group();
+  const ghostTilt = new THREE.Group();
+  ghostTilt.rotation.order = 'YXZ';
+  ghost.add(ghostTilt);
+  function restEllipse() {
+    const L = state.layout;
+    ghost.position.set(0, L.yC, 0);
+    ghost.scale.setScalar(L.R);
+    ghost.rotation.z = BASE.z;
+    ghostTilt.rotation.set(BASE.x, BASE.y, 0);
+    ghost.updateMatrixWorld(true);
+    return fitEllipse(ghostTilt);
+  }
+
+  function fitEllipse(obj) {
     const w = window.innerWidth;
     const h = window.innerHeight;
     const toScreen = (vec) => {
@@ -210,7 +243,7 @@ export function createStage(canvas, discCanvases, blurCanvases, backAlphaCanvas)
     const pts = [];
     for (let k = 0; k < N; k++) {
       const t = (k / N) * Math.PI * 2;
-      pts.push(toScreen(d.spin.localToWorld(v.set(Math.cos(t), Math.sin(t), 0))));
+      pts.push(toScreen(obj.localToWorld(v.set(Math.cos(t), Math.sin(t), 0))));
     }
     let max = 0;
     let min = Infinity;
@@ -229,12 +262,13 @@ export function createStage(canvas, discCanvases, blurCanvases, backAlphaCanvas)
       }
       if (len < min) min = len;
     }
-    return { index: i, cx, cy, rx: max, ry: min, angle };
+    return { cx, cy, rx: max, ry: min, angle };
   }
 
   window.addEventListener('resize', layout);
+  COMPACT.addEventListener('change', layout);
 
-  return { state, render, layout, activeEllipse, renderer };
+  return { state, render, layout, activeEllipse, restEllipse, renderer };
 }
 
 export function webglAvailable() {
