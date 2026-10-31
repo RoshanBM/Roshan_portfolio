@@ -11,6 +11,7 @@ import './player.css';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
+import { Observer } from 'gsap/Observer';
 
 import iconDownload from '@phosphor-icons/core/assets/regular/download-simple.svg?raw';
 import iconCaretLeft from '@phosphor-icons/core/assets/regular/caret-left.svg?raw';
@@ -18,10 +19,12 @@ import iconCaretRight from '@phosphor-icons/core/assets/regular/caret-right.svg?
 
 import { person, discs } from './content.js';
 import { drawDisc, drawSpinBlur, drawBackAlpha } from './discArt.js';
-import { createStage, webglAvailable } from './scene.js';
+import { createStage, webglAvailable, COMPACT } from './scene.js';
 import { createPlayer } from './player.js';
 
-gsap.registerPlugin(ScrollTrigger, ScrambleTextPlugin);
+gsap.registerPlugin(ScrollTrigger, ScrambleTextPlugin, Observer);
+// mobile browsers resize the viewport as their toolbars show and hide; that must not move the discs
+ScrollTrigger.config({ ignoreMobileResize: true });
 
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const D = (t) => (reduce ? 0 : t);
@@ -178,10 +181,12 @@ function createFallback(canvases) {
 let stage;
 let active = 0;
 let target = 0;
-let aim = null; // the disc a scroll is heading to, so quick repeat taps on the arrows each move one disc
-let aimAt = 0;
 let playerOpen = false;
 let playerIndex = -1;
+
+// Desktop: page scroll drives the discs. Phones and tablets (compact): the landing page never scrolls,
+// and `active` is the single source of truth, changed only by the arrows, swipes, the dock and the keys.
+let compact = COMPACT.matches;
 
 function sectionHeight() {
   return track.firstElementChild.offsetHeight;
@@ -190,38 +195,34 @@ function sectionHeight() {
 function goTo(i, instant = false) {
   const n = discs.length;
   const idx = (i + n) % n;
-  aim = idx;
-  aimAt = performance.now();
-  updateArrows();
+  if (compact) return select(idx, instant);
   window.scrollTo({ top: idx * sectionHeight(), behavior: instant || reduce ? 'auto' : 'smooth' });
 }
 
-// The disc the arrows count from. The aim is only trusted briefly: once the scroll arrives, the
-// visitor touches the page, or a moment passes, the real scroll position takes over again.
-function currentDisc() {
-  return aim !== null && performance.now() - aimAt < 1200 ? aim : Math.round(target);
+// compact only: the disc, title, credits, highlights, dock and arrows all follow this one index
+function select(i, instant = false) {
+  if (i === active) return;
+  active = target = i;
+  if (instant) stage.state.progress = i;
+  updateActive();
 }
 
 // one disc back or forward, stopping at the ends like the keyboard arrows
 function step(dir) {
-  const from = currentDisc();
-  const to = Math.min(Math.max(from + dir, 0), discs.length - 1);
-  if (to !== from) goTo(to);
+  const to = Math.min(Math.max(active + dir, 0), discs.length - 1);
+  if (to !== active) goTo(to);
 }
 
 function updateActive() {
   dockBtns.forEach((b, i) => b.setAttribute('aria-current', String(i === active)));
   setInfo(active, true);
+  updateArrows();
 }
 
-/* ---------- arrows (phones and tablets) ---------- */
+/* ---------- arrows and swipes (phones and tablets) ---------- */
 
-// runs every frame from the ticker, so it only touches the DOM when the disc changes
-let arrowsFor = -1;
 function updateArrows() {
-  const i = currentDisc();
-  if (i === arrowsFor) return;
-  arrowsFor = i;
+  const i = active;
   const last = discs.length - 1;
   const hadFocus = document.activeElement;
   arrowPrev.disabled = i === 0;
@@ -249,9 +250,34 @@ function placeArrows() {
 
 arrowPrev.addEventListener('click', () => step(-1));
 arrowNext.addEventListener('click', () => step(1));
-// a scroll or swipe of the visitor's own takes over from any arrow-driven scroll
-window.addEventListener('touchstart', (e) => e.target.closest?.('.arrow') || (aim = null), { passive: true });
-window.addEventListener('wheel', () => (aim = null), { passive: true });
+
+// One disc per swipe, decided when the finger lifts: left or up is next, right or down is previous.
+// Short movements are taps, so tapping the disc still opens it. Enabled only in compact mode.
+const swipe = Observer.create({
+  target: window,
+  type: 'touch',
+  onRelease: (self) => {
+    const dx = self.x - self.startX;
+    const dy = self.y - self.startY;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 40) return;
+    const along = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+    step(along < 0 ? 1 : -1);
+  },
+});
+compact || swipe.disable();
+
+// crossing 1024px (a resized desktop window) switches between scroll-driven and index-driven discs
+function setMode() {
+  compact = COMPACT.matches;
+  if (compact) {
+    target = active;
+    playerOpen || swipe.enable();
+  } else {
+    swipe.disable();
+    ScrollTrigger.refresh();
+    goTo(active, true);
+  }
+}
 
 /* ---------- hit area over the centred disc ---------- */
 
@@ -343,12 +369,13 @@ const player = createPlayer({
 
 function syncDisc(i) {
   if (i === active) return;
-  goTo(i, true);
+  if (!compact) goTo(i, true);
   target = i;
   stage.state.progress = i;
   active = i;
   dockBtns.forEach((b, k) => b.setAttribute('aria-current', String(k === i)));
   setInfo(i, false);
+  updateArrows();
 }
 
 // the landing-page UI steps back while the media player is open
@@ -371,6 +398,7 @@ function openPlayer(i) {
   if (!hit.hidden && hit.offsetWidth) discRect = rectOf(hit);
   syncDisc(i);
   playerOpen = true;
+  swipe.disable();
   lastFocus = document.activeElement;
   setHover(false);
   html.classList.add('is-locked');
@@ -390,6 +418,7 @@ function openPlayer(i) {
 function closePlayer() {
   if (!playerOpen) return;
   playerOpen = false;
+  compact && swipe.enable();
   html.classList.remove('is-locked');
   gsap.killTweensOf(stage.state);
   // minimise shrinks the window into the dock; close returns it to the disc
@@ -487,18 +516,20 @@ async function boot() {
 
   // start where the URL points, if anywhere
   const hashIndex = discs.findIndex((d) => `#${d.id}` === location.hash);
-  if (hashIndex > 0) goTo(hashIndex, true);
+  if (hashIndex > 0) {
+    if (compact) target = hashIndex;
+    else goTo(hashIndex, true);
+  }
 
+  // in compact mode the page does not scroll, so scroll position never touches the discs
   ScrollTrigger.create({
     trigger: track,
     start: 'top top',
     end: 'bottom bottom',
-    onUpdate: (self) => {
-      target = self.progress * (discs.length - 1);
-      if (aim !== null && Math.abs(target - aim) < 0.01) aim = null; // arrived
-    },
-    onRefresh: (self) => (target = self.progress * (discs.length - 1)),
+    onUpdate: (self) => compact || (target = self.progress * (discs.length - 1)),
+    onRefresh: (self) => compact || (target = self.progress * (discs.length - 1)),
   });
+  COMPACT.addEventListener('change', setMode);
   stage.state.progress = target;
   active = Math.round(target);
   dockBtns.forEach((b, i) => b.setAttribute('aria-current', String(i === active)));
@@ -507,32 +538,34 @@ async function boot() {
   gsap.ticker.add((time, deltaMs) => {
     const k = reduce ? 1 : 1 - Math.exp((-deltaMs / 1000) * 7);
     stage.state.progress += (target - stage.state.progress) * k;
+    // desktop: the disc nearest the scroll position becomes active; compact sets `active` directly
     const idx = Math.round(stage.state.progress);
-    if (idx !== active && !playerOpen) {
+    if (!compact && idx !== active && !playerOpen) {
       active = idx;
       updateActive();
     }
     if (!(playerOpen && stage.state.open >= 0.999)) stage.render();
     positionHit();
-    updateArrows();
   });
 
   setLoad(1);
   await wait(D(0.55));
   stage.state.intro = reduce ? 1 : 0;
 
+  // offsets go through D() too: with reduced motion every duration is 0, and a fixed '-=0.45' would push
+  // the setInfo() call to a negative time that the playhead never reaches, leaving the credits blank
   gsap
     .timeline()
     .to('.loader__num', { yPercent: -110, duration: D(0.55), ease: 'power3.in' })
     .to('.loader__side', { autoAlpha: 0, duration: D(0.35) }, '<')
-    .to('.loader', { autoAlpha: 0, duration: D(0.5) }, '-=0.1')
+    .to('.loader', { autoAlpha: 0, duration: D(0.5) }, `-=${D(0.1)}`)
     .set('.loader', { display: 'none' })
-    .to(stage.state, { intro: 1, duration: D(1.8), ease: 'expo.out' }, '-=0.45')
-    .add(() => setInfo(active, true), '<0.25')
-    .from('.dock', { y: 40, autoAlpha: 0, duration: D(0.9), ease: 'expo.out', clearProps: 'transform,translate,rotate,scale' }, '<0.1')
+    .to(stage.state, { intro: 1, duration: D(1.8), ease: 'expo.out' }, `-=${D(0.45)}`)
+    .add(() => setInfo(active, true), `<${D(0.25)}`)
+    .from('.dock', { y: 40, autoAlpha: 0, duration: D(0.9), ease: 'expo.out', clearProps: 'transform,translate,rotate,scale' }, `<${D(0.1)}`)
     .from('.corner__link', { y: -8, autoAlpha: 0, duration: D(0.6), stagger: 0.08, clearProps: 'transform,translate,rotate,scale' }, '<')
-    .from('.arrows', { autoAlpha: 0, duration: D(0.6) }, '<0.2')
-    .add(() => hashIndex >= 0 && route(), '<0.6');
+    .from('.arrows', { autoAlpha: 0, duration: D(0.6) }, `<${D(0.2)}`)
+    .add(() => hashIndex >= 0 && route(), `<${D(0.6)}`);
 }
 
 boot();

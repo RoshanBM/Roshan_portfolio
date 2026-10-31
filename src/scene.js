@@ -4,8 +4,8 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 // Base orientation of a disc lying on a table, seen from above at an angle
 const BASE = { x: -0.86, y: 0.12, z: 0.42 };
 
-// Phones and tablets (touch, or 1024px wide and below): matches the arrow buttons in styles.css
-const COMPACT = window.matchMedia('(hover: none), (max-width: 1024px)');
+// Phones and tablets (touch, or 1024px wide and below): matches the compact rules in styles.css
+export const COMPACT = window.matchMedia('(hover: none), (max-width: 1024px)');
 
 export function createStage(canvas, discCanvases, blurCanvases, backAlphaCanvas) {
   const renderer = new THREE.WebGLRenderer({

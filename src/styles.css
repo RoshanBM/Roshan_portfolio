@@ -358,18 +358,25 @@ button {
   cursor: default;
 }
 
+/*
+  Phones and tablets (matches COMPACT in scene.js): the landing page does not scroll at all.
+  The arrows and swipes in main.js change the disc, so there is no scroll-snap to bounce back and
+  no toolbar resize from Safari, and overscroll is off so swipes never pull or navigate the page.
+*/
 @media (hover: none), (max-width: 1024px) {
-  /* a stray sideways swipe should not trigger the browser's back gesture and leave the site */
+  html {
+    scroll-snap-type: none;
+    overflow: hidden;
+  }
   html,
   body {
-    overscroll-behavior-x: none;
+    overscroll-behavior: none;
+  }
+  .track {
+    display: none;
   }
   .arrows {
     display: block;
-  }
-  /* one disc per vertical flick on touch screens, however hard */
-  .track > section {
-    scroll-snap-stop: always;
   }
 }
 
