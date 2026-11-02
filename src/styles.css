@@ -451,7 +451,8 @@ button {
   position: fixed;
   z-index: var(--z-ui);
   left: 50%;
-  bottom: calc(var(--gutter) + 76px);
+  /* measured from the dock's own bottom, so a home-bar inset that lifts the dock lifts these too */
+  bottom: calc(max(var(--gutter), env(safe-area-inset-bottom)) + 76px);
   translate: -50% 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 220px));
@@ -598,7 +599,7 @@ button {
     margin-top: 0;
   }
   .highlights {
-    bottom: calc(var(--gutter) + 64px);
+    bottom: calc(max(var(--gutter), env(safe-area-inset-bottom)) + 76px);
     width: calc(100vw - 2 * var(--gutter));
     grid-template-columns: 1fr 1fr;
     gap: 16px;
