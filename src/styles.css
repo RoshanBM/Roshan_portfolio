@@ -1,6 +1,8 @@
 /*
   Design notes
   - One theme family: cool off-white paper in light mode, near-black in dark mode.
+    data-theme on <html> picks the set: the inline script in index.html sets it before this file loads
+    (the stored choice, else the system setting) and src/theme.js keeps it in step, so each value lives once.
   - One accent (vermilion) on the landing page, used for focus and link hover.
   - The media player window has its own theme in player.css.
   - Shape rule: interactive pills (dock, close) are fully round; everything else is square.
@@ -32,20 +34,26 @@
   --z-loader: 60;
   --z-grain: 80;
 
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #121314;
-    --ink: #ecebe7;
-    --muted: #9b9ea3;
-    --rule: rgba(236, 235, 231, 0.6);
-    --rule-soft: rgba(236, 235, 231, 0.14);
-    --accent: #ff6b3d;
-    --surface: #1d1f21;
-    --shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 10px 30px rgba(0, 0, 0, 0.5);
-  }
+:root[data-theme='dark'] {
+  --bg: #121314;
+  --ink: #ecebe7;
+  --muted: #9b9ea3;
+  --rule: rgba(236, 235, 231, 0.6);
+  --rule-soft: rgba(236, 235, 231, 0.14);
+  --accent: #ff6b3d;
+  --surface: #1d1f21;
+  --shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 10px 30px rgba(0, 0, 0, 0.5);
+
+  color-scheme: dark;
+}
+
+/* switching theme cross-fades the whole page once (theme.js skips it with reduced motion) */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.3s;
 }
 
 *,
@@ -295,6 +303,55 @@ button {
     transform-origin: left;
   }
 }
+.corner__theme {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-top: -2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition-property: color, scale;
+  transition-duration: 0.2s;
+}
+.corner__theme .theme-ico {
+  width: 18px;
+  height: 18px;
+}
+.corner__theme:active {
+  scale: 0.96;
+}
+@media (hover: hover) {
+  .corner__theme:hover {
+    color: var(--accent);
+  }
+}
+
+/* theme toggles (corner and player): both icons stay in the DOM and cross-fade; the visible one is the
+   mode a click switches to, so the moon shows in light mode and the sun in dark mode */
+.theme-toggle {
+  display: grid;
+}
+.theme-ico {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  transition-property: opacity, scale, filter;
+  transition-duration: 0.3s;
+  transition-timing-function: var(--ease-out);
+}
+.theme-ico svg {
+  width: 100%;
+  height: 100%;
+}
+:root[data-theme='dark'] .theme-ico--moon,
+:root:not([data-theme='dark']) .theme-ico--sun {
+  opacity: 0;
+  scale: 0.25;
+  filter: blur(4px);
+}
 
 /* ---------- disc hit area ---------- */
 
@@ -318,7 +375,7 @@ button {
   outline-offset: 10px;
 }
 
-/* ---------- arrows beside the disc (phones and tablets) ---------- */
+/* ---------- arrows beside the disc (phones) ---------- */
 
 /* main.js places each arrow with a transform beside the resting disc and fades .arrows with GSAP */
 .arrows {
@@ -377,6 +434,14 @@ button {
   }
   .arrows {
     display: block;
+  }
+}
+
+/* tablets (at least 768px wide and over 600px tall): no arrows; swipes, the dock and the keys change the disc.
+   Phones keep them in portrait and landscape. */
+@media (min-width: 768px) and (min-height: 601px) {
+  .arrows {
+    display: none;
   }
 }
 
@@ -526,6 +591,11 @@ button {
   .corner__link::after {
     left: 10px;
     right: 0;
+  }
+  /* the 44px hit area stays; the icon lines up with the right edge of the links above */
+  .corner__theme {
+    place-items: center end;
+    margin-top: 0;
   }
   .highlights {
     bottom: calc(var(--gutter) + 64px);

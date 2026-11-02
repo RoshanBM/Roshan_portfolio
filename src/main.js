@@ -21,6 +21,7 @@ import { person, discs } from './content.js';
 import { drawDisc, drawSpinBlur, drawBackAlpha } from './discArt.js';
 import { createStage, webglAvailable, COMPACT } from './scene.js';
 import { createPlayer } from './player.js';
+import { initTheme, toggleTheme, themeIcons } from './theme.js';
 
 gsap.registerPlugin(ScrollTrigger, ScrambleTextPlugin, Observer);
 // mobile browsers resize the viewport as their toolbars show and hide; that must not move the discs
@@ -219,7 +220,7 @@ function updateActive() {
   updateArrows();
 }
 
-/* ---------- arrows and swipes (phones and tablets) ---------- */
+/* ---------- arrows (phones) and swipes (phones and tablets) ---------- */
 
 function updateArrows() {
   const i = active;
@@ -366,6 +367,12 @@ const player = createPlayer({
     syncDisc(i);
   },
 });
+
+// Theme toggles: one in the corner, one in the player's title bar; both carry data-theme-toggle
+const themeBtn = $('.corner__theme');
+themeBtn.innerHTML = themeIcons();
+themeBtn.addEventListener('click', toggleTheme);
+initTheme();
 
 function syncDisc(i) {
   if (i === active) return;
@@ -563,7 +570,7 @@ async function boot() {
     .to(stage.state, { intro: 1, duration: D(1.8), ease: 'expo.out' }, `-=${D(0.45)}`)
     .add(() => setInfo(active, true), `<${D(0.25)}`)
     .from('.dock', { y: 40, autoAlpha: 0, duration: D(0.9), ease: 'expo.out', clearProps: 'transform,translate,rotate,scale' }, `<${D(0.1)}`)
-    .from('.corner__link', { y: -8, autoAlpha: 0, duration: D(0.6), stagger: 0.08, clearProps: 'transform,translate,rotate,scale' }, '<')
+    .from('.corner__link, .corner__theme', { y: -8, autoAlpha: 0, duration: D(0.6), stagger: 0.08, clearProps: 'transform,translate,rotate,scale' }, '<')
     .from('.arrows', { autoAlpha: 0, duration: D(0.6) }, `<${D(0.2)}`)
     .add(() => hashIndex >= 0 && route(), `<${D(0.6)}`);
 }

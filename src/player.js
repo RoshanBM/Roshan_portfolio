@@ -24,6 +24,7 @@ import iPrev from '@phosphor-icons/core/assets/fill/skip-back-fill.svg?raw';
 import iNext from '@phosphor-icons/core/assets/fill/skip-forward-fill.svg?raw';
 
 import { drawCover, drawArtistArt } from './discArt.js';
+import { toggleTheme, themeIcons } from './theme.js';
 
 const DISC_ICONS = { about: iUser, projects: iFolder, experience: iBriefcase, research: iBook };
 
@@ -51,6 +52,7 @@ export function createPlayer({ person, discs, reduce, onClose, onDisc }) {
         <span class="wmp__appicon">${icon(iDisc)}</span>
         <h2 class="wmp__title" id="wmp-title">RBM Media Player</h2>
         <div class="wmp__winbtns">
+          <button class="winbtn theme-toggle" type="button" data-act="theme" data-theme-toggle aria-label="Switch to dark mode">${themeIcons()}</button>
           <button class="winbtn" type="button" data-act="min" aria-label="Minimise">${icon(iMinus)}</button>
           <button class="winbtn" type="button" data-act="max" aria-label="Maximise">${icon(iSquare)}</button>
           <button class="winbtn winbtn--close" type="button" data-act="close" aria-label="Close">${icon(iX)}</button>
@@ -376,6 +378,8 @@ export function createPlayer({ person, discs, reduce, onClose, onDisc }) {
     switch (act) {
       case 'close':
         return onClose('close');
+      case 'theme':
+        return toggleTheme();
       case 'min':
         return onClose('min');
       case 'max': {

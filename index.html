@@ -8,8 +8,19 @@
       name="description"
       content="Roshan Balaji Mahashabde, ML and AI engineer finishing an MSc in Applied AI at Warwick. Projects, experience and research, pressed onto four discs."
     />
-    <meta name="theme-color" content="#ededeb" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#121314" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#ededeb" />
+    <script>
+      // Set the theme before the CSS loads so a reload never flashes the wrong one; src/theme.js takes over from here
+      (function () {
+        var t;
+        try {
+          t = localStorage.getItem('rbm-theme');
+        } catch (e) {}
+        if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', t);
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'dark' ? '#121314' : '#ededeb');
+      })();
+    </script>
     <meta property="og:title" content="Roshan Mahashabde | ML & AI Engineer" />
     <meta property="og:description" content="Projects, experience and research, pressed onto four discs." />
     <meta property="og:type" content="website" />
@@ -37,6 +48,7 @@
     <div class="corner">
       <a class="corner__link" data-cv download>CV <span class="icon" data-icon="download"></span></a>
       <a class="corner__link" data-email>Email me</a>
+      <button class="corner__theme theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark mode"></button>
     </div>
 
     <button class="disc-hit" type="button" hidden></button>
