@@ -13,7 +13,7 @@ export const person = {
   github: 'https://github.com/RoshanBM',
   cv: '/Roshan-Mahashabde-CV.pdf',
   // Optional: a square photo in public/ (e.g. '/me.jpg') for the artist page in the media player
-  photo: null,
+  photo: '/0B992C14-8AC5-4D8B-AD50-5F241D3E45B6.jpeg',
 };
 
 export const discs = [
@@ -107,8 +107,8 @@ export const discs = [
       ['Source', 'github.com/RoshanBM'],
     ],
     highlights: [
-      ['Digital twin', 'R² of 0.99'],
-      ['NHS dashboard', '9.35M rows processed'],
+      ['Selected work', '6 projects'],
+      ['MSc dissertation', 'GNSS multipath detection'],
     ],
     byline: [
       ['Built with', 'Python, Flask, XGBoost, SHAP'],
