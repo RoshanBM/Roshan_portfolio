@@ -1,12 +1,11 @@
-// Light / dark theme. The inline script in index.html sets data-theme on <html> before the CSS loads;
-// this module keeps it in step: it follows the system until the visitor picks a theme, then remembers the pick.
+// Light / dark theme. The site is light unless the visitor picks dark with a toggle; the pick is remembered.
+// The inline script in index.html sets data-theme on <html> before the CSS loads; this module handles the toggles.
 
 import iSun from '@phosphor-icons/core/assets/regular/sun.svg?raw';
 import iMoon from '@phosphor-icons/core/assets/regular/moon.svg?raw';
 
 const KEY = 'rbm-theme'; // also read by the inline script in index.html
 const COLOURS = { light: '#ededeb', dark: '#121314' }; // theme-color, matches --bg in styles.css
-const system = window.matchMedia('(prefers-color-scheme: dark)');
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
 const root = document.documentElement;
 
@@ -18,9 +17,6 @@ function stored() {
     return null;
   }
 }
-
-let chosen = stored(); // null until the visitor picks, so the system setting is followed
-const systemTheme = () => (system.matches ? 'dark' : 'light');
 
 export const currentTheme = () => (root.dataset.theme === 'dark' ? 'dark' : 'light');
 
@@ -36,19 +32,18 @@ function apply(theme) {
 }
 
 export function toggleTheme() {
-  chosen = currentTheme() === 'dark' ? 'light' : 'dark';
+  const next = currentTheme() === 'dark' ? 'light' : 'dark';
   try {
-    localStorage.setItem(KEY, chosen);
+    localStorage.setItem(KEY, next);
   } catch {
     // storage blocked: the choice still holds for this visit
   }
-  const run = () => apply(chosen);
+  const run = () => apply(next);
   if (document.startViewTransition && !reduce.matches) document.startViewTransition(run);
   else run();
 }
 
 // Call once the toggles are in the DOM, so their labels are set
 export function initTheme() {
-  apply(chosen || systemTheme());
-  system.addEventListener('change', () => chosen || apply(systemTheme()));
+  apply(stored() || 'light');
 }

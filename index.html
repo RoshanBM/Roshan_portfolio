@@ -10,13 +10,13 @@
     />
     <meta name="theme-color" content="#ededeb" />
     <script>
-      // Set the theme before the CSS loads so a reload never flashes the wrong one; src/theme.js takes over from here
+      // Light unless the visitor picked dark with the toggle; set before the CSS loads so a reload never flashes. See src/theme.js
       (function () {
         var t;
         try {
           t = localStorage.getItem('rbm-theme');
         } catch (e) {}
-        if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        if (t !== 'dark') t = 'light';
         document.documentElement.setAttribute('data-theme', t);
         document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'dark' ? '#121314' : '#ededeb');
       })();

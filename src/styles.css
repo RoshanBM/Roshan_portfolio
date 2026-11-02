@@ -2,7 +2,7 @@
   Design notes
   - One theme family: cool off-white paper in light mode, near-black in dark mode.
     data-theme on <html> picks the set: the inline script in index.html sets it before this file loads
-    (the stored choice, else the system setting) and src/theme.js keeps it in step, so each value lives once.
+    (light, or dark if the visitor picked it with the toggle) and src/theme.js handles the toggles, so each value lives once.
   - One accent (vermilion) on the landing page, used for focus and link hover.
   - The media player window has its own theme in player.css.
   - Shape rule: interactive pills (dock, close) are fully round; everything else is square.
