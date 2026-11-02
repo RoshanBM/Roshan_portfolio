@@ -495,15 +495,16 @@
 }
 .row__num {
   position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 22px;
   font-family: var(--w-lcd);
   font-size: 22px;
   line-height: 1;
   color: var(--w-muted);
 }
+/* the equaliser marks the selected track, in place of its number */
 .row__eq {
-  position: absolute;
-  left: 0;
-  bottom: 2px;
   display: none;
   align-items: flex-end;
   gap: 2px;
@@ -531,10 +532,16 @@
     transform: scaleY(1);
   }
 }
-.is-playing .row[aria-pressed='true'] .row__n {
-  visibility: hidden;
+.row[aria-pressed='true'] .row__n {
+  /* visually hidden, still read out */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
-.is-playing .row[aria-pressed='true'] .row__eq {
+.row[aria-pressed='true'] .row__eq {
   display: flex;
 }
 .row__title {
@@ -962,36 +969,14 @@
 .tp__controls {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
 }
+/* previous / next: the glass buttons at the centre of the transport */
 .tpbtn {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--w-text);
-  cursor: pointer;
-  transition-property: background-color, scale;
-  transition-duration: 0.12s;
-}
-.tpbtn:active {
-  scale: 0.96;
-}
-@media (hover: hover) {
-  .tpbtn:hover {
-    background: rgba(127, 160, 200, 0.2);
-  }
-}
-/* the glass play button */
-.tp__play {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  margin: 0 4px;
+  width: 48px;
+  height: 48px;
   border: 1px solid #0f4a96;
   border-radius: 50%;
   background: radial-gradient(circle at 50% 30%, #9fd3ff 0%, #3d8ef0 45%, #1350b3 100%);
@@ -1001,15 +986,15 @@
   transition-property: filter, scale;
   transition-duration: 0.15s;
 }
-.tp__play .ico {
-  width: 22px;
-  height: 22px;
+.tpbtn .ico {
+  width: 20px;
+  height: 20px;
 }
-.tp__play:active {
+.tpbtn:active {
   scale: 0.96;
 }
 @media (hover: hover) {
-  .tp__play:hover {
+  .tpbtn:hover {
     filter: brightness(1.08);
   }
 }
@@ -1017,31 +1002,23 @@
   justify-self: end;
   display: flex;
   align-items: baseline;
-  gap: 14px;
+  gap: 8px;
   padding: 4px 12px;
   border-radius: 4px;
   background: #0d1a10;
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.25);
   color: #8dffa0;
   font-family: var(--w-lcd);
+  font-variant-numeric: tabular-nums;
   line-height: 1;
   text-shadow: 0 0 6px rgba(120, 255, 150, 0.45);
 }
-.lcd__time {
+.lcd__num {
   font-size: 32px;
 }
-.lcd__track {
+.lcd__total {
   font-size: 20px;
   opacity: 0.8;
-}
-/* a paused CD player blinks its clock */
-.tp__lcd.is-paused .lcd__time {
-  animation: blink 1s steps(1) infinite;
-}
-@keyframes blink {
-  50% {
-    opacity: 0.15;
-  }
 }
 
 /* ---------- narrower windows: details open inline under the row ---------- */
@@ -1158,19 +1135,17 @@
     gap: 8px;
     padding: 9px 10px calc(6px + env(safe-area-inset-bottom));
   }
-  .tp__lcd,
-  .tpbtn[data-act='stop'] {
+  .tp__lcd {
     display: none;
   }
-  .tp__play {
-    width: 46px;
-    height: 46px;
+  .tpbtn {
+    width: 44px;
+    height: 44px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .row__eq i,
-  .tp__lcd.is-paused .lcd__time {
+  .row__eq i {
     animation: none;
   }
   .row__eq i {

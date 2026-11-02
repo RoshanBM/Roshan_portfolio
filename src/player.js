@@ -20,16 +20,12 @@ import iSquare from '@phosphor-icons/core/assets/regular/square.svg?raw';
 import iCopy from '@phosphor-icons/core/assets/regular/copy.svg?raw';
 import iX from '@phosphor-icons/core/assets/regular/x.svg?raw';
 import iOut from '@phosphor-icons/core/assets/regular/arrow-up-right.svg?raw';
-import iPlay from '@phosphor-icons/core/assets/fill/play-fill.svg?raw';
-import iPause from '@phosphor-icons/core/assets/fill/pause-fill.svg?raw';
-import iStop from '@phosphor-icons/core/assets/fill/stop-fill.svg?raw';
 import iPrev from '@phosphor-icons/core/assets/fill/skip-back-fill.svg?raw';
 import iNext from '@phosphor-icons/core/assets/fill/skip-forward-fill.svg?raw';
 
 import { drawCover, drawArtistArt } from './discArt.js';
 
 const DISC_ICONS = { about: iUser, projects: iFolder, experience: iBriefcase, research: iBook };
-const TRACK_SECONDS = 10; // how long each track stays "playing" before auto-advancing
 
 const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -87,14 +83,12 @@ export function createPlayer({ person, discs, reduce, onClose, onDisc }) {
           <span class="tp__text"><span class="tp__title"></span><span class="tp__sub"></span></span>
         </div>
         <div class="tp__controls">
-          <button class="tpbtn" type="button" data-act="stop" aria-label="Stop">${icon(iStop)}</button>
           <button class="tpbtn" type="button" data-act="prev" aria-label="Previous track">${icon(iPrev)}</button>
-          <button class="tp__play" type="button" data-act="play" aria-label="Play">${icon(iPlay)}</button>
           <button class="tpbtn" type="button" data-act="next" aria-label="Next track">${icon(iNext)}</button>
         </div>
         <div class="tp__lcd" aria-hidden="true">
-          <span class="lcd__time">00:00</span>
-          <span class="lcd__track">01/01</span>
+          <span class="lcd__num">01</span>
+          <span class="lcd__total">of 01</span>
         </div>
       </footer>
     </section>`;
@@ -113,10 +107,8 @@ export function createPlayer({ person, discs, reduce, onClose, onDisc }) {
   const tpArt = $('.tp__art', layer);
   const tpTitle = $('.tp__title', layer);
   const tpSub = $('.tp__sub', layer);
-  const playBtn = $('.tp__play', layer);
-  const lcd = $('.tp__lcd', layer);
-  const lcdTime = $('.lcd__time', layer);
-  const lcdTrack = $('.lcd__track', layer);
+  const lcdNum = $('.lcd__num', layer);
+  const lcdTotal = $('.lcd__total', layer);
   const maxBtn = $('[data-act="max"]', layer);
 
   nav.innerHTML = `
@@ -297,11 +289,7 @@ export function createPlayer({ person, discs, reduce, onClose, onDisc }) {
   let di = 0;
   let sel = 0;
   let expanded = -1; // which row is expanded in narrow layouts
-  let playing = false;
-  let elapsed = 0;
-  let trackT = 0;
   let isOpen = false;
-  let lastSecond = -1;
 
   const rowsOf = () => $$('.row', main);
   const itemsOf = () => $$('.lib__item', main);
@@ -318,10 +306,7 @@ export function createPlayer({ person, discs, reduce, onClose, onDisc }) {
     search.placeholder = `Search ${d.label}`;
     sel = -1;
     expanded = -1;
-    elapsed = 0;
-    trackT = 0;
     select(0, { quiet: true });
-    updateLcd(true);
   }
 
   function select(k, { quiet = false, focus = false } = {}) {
@@ -345,8 +330,7 @@ export function createPlayer({ person, discs, reduce, onClose, onDisc }) {
     tpArt.src = coverFor(di, k);
     tpTitle.textContent = t.title;
     tpSub.textContent = `${d.title} / ${t.meta}`;
-    if (changed) trackT = 0;
-    updateLcd(true);
+    updateLcd();
     updateSeek();
     if (focus) rowsOf()[k]?.focus();
   }
@@ -360,42 +344,16 @@ export function createPlayer({ person, discs, reduce, onClose, onDisc }) {
     });
   }
 
+  // The seek bar and LCD show where the selected track sits on the disc
   function updateSeek() {
     const n = discs[di].tracks.length;
-    gsap.to(seekFill, { scaleX: (sel + trackT) / n, duration: playing ? 0.15 : D(0.35), ease: playing ? 'none' : 'power2.out', overwrite: true });
+    gsap.to(seekFill, { scaleX: (sel + 1) / n, duration: D(0.35), ease: 'power2.out', overwrite: true });
   }
 
-  function updateLcd(force = false) {
-    const s = Math.floor(elapsed);
-    if (!force && s === lastSecond) return;
-    lastSecond = s;
-    lcdTime.textContent = `${pad2(Math.floor(s / 60))}:${pad2(s % 60)}`;
-    lcdTrack.textContent = `${pad2(sel + 1)}/${pad2(discs[di].tracks.length)}`;
+  function updateLcd() {
+    lcdNum.textContent = pad2(sel + 1);
+    lcdTotal.textContent = `of ${pad2(discs[di].tracks.length)}`;
   }
-
-  function setPlaying(on) {
-    playing = on;
-    playBtn.innerHTML = icon(on ? iPause : iPlay);
-    playBtn.setAttribute('aria-label', on ? 'Pause' : 'Play');
-    lcd.classList.toggle('is-paused', !on && elapsed > 0);
-    win.classList.toggle('is-playing', on);
-  }
-
-  // Playback clock: only runs while the window is open and playing
-  function tick(_, deltaMs) {
-    if (!isOpen || !playing) return;
-    const dt = deltaMs / 1000;
-    elapsed += dt;
-    trackT += dt / TRACK_SECONDS;
-    if (trackT >= 1) {
-      trackT = 0;
-      select(sel + 1);
-      if (!wide.matches && expanded >= 0) setExpanded(sel);
-    }
-    updateLcd();
-    updateSeek();
-  }
-  gsap.ticker.add(tick);
 
   /* ---------- events ---------- */
 
@@ -430,15 +388,6 @@ export function createPlayer({ person, discs, reduce, onClose, onDisc }) {
         return switchDisc(di - 1);
       case 'next-disc':
         return switchDisc(di + 1);
-      case 'play':
-        return setPlaying(!playing);
-      case 'stop':
-        setPlaying(false);
-        elapsed = 0;
-        trackT = 0;
-        lcd.classList.remove('is-paused');
-        select(0);
-        return;
       case 'prev':
         return select(sel - 1);
       case 'next':
@@ -515,7 +464,6 @@ export function createPlayer({ person, discs, reduce, onClose, onDisc }) {
     win.classList.remove('is-max');
     maxBtn.innerHTML = icon(iSquare);
     render(i);
-    setPlaying(false);
 
     const focusFirst = () => (rowsOf()[0] || main).focus({ preventScroll: true });
     if (reduce) {
@@ -548,7 +496,6 @@ export function createPlayer({ person, discs, reduce, onClose, onDisc }) {
 
   function close(toRect) {
     isOpen = false;
-    setPlaying(false);
     const done = () => {
       layer.hidden = true;
       main.innerHTML = '';
@@ -571,7 +518,6 @@ export function createPlayer({ person, discs, reduce, onClose, onDisc }) {
   }
 
   function show(i) {
-    setPlaying(false);
     if (reduce) {
       render(i);
       return;
